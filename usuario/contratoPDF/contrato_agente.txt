@@ -1,0 +1,31 @@
+CONTRATO DE VINCULACIÓN LABORAL Y DE INTERMEDIACIÓN INMOBILIARIA
+
+En la ciudad de {ciudad}, a los {fecha}, se celebra el presente contrato entre:
+
+I. INMOBILIARIA: {inmobiliaria_nombre}, con domicilio en {inmobiliaria_direccion}, representada por {inmobiliaria_representante}.
+
+II. AGENTE INMOBILIARIO: {agente_nombre}, con domicilio en {agente_direccion}, CI: {agente_ci}, Licencia N° {agente_licencia}.
+
+CLÁUSULA PRIMERA - OBJETO: La inmobiliaria contrata al agente para que intermedie en la compra, venta o arriendo de inmuebles, actuando en representación de la empresa.
+
+CLÁUSULA SEGUNDA - OBLIGACIONES DEL AGENTE:
+- Promocionar los inmuebles registrados por la inmobiliaria.
+- Coordinar visitas con clientes potenciales.
+- Negociar de buena fe y en beneficio de la inmobiliaria.
+- Informar periódicamente a la inmobiliaria sobre avances de las operaciones.
+
+CLÁUSULA TERCERA - OBLIGACIONES DE LA INMOBILIARIA:
+- Proveer al agente con los inmuebles disponibles y documentación necesaria.
+- Pagar las comisiones pactadas en tiempo y forma.
+- Brindar soporte y herramientas necesarias para la intermediación.
+
+CLÁUSULA CUARTA - COMISIONES Y HONORARIOS:
+La comisión del agente será del {comision}% sobre el valor final de cada operación realizada exitosamente. Las comisiones se pagarán de acuerdo a la política interna de la inmobiliaria.
+
+CLÁUSULA QUINTA - DURACIÓN Y TERMINACIÓN:
+Este contrato tendrá una duración de {duracion} meses, renovable automáticamente salvo notificación en contrario. Cualquiera de las partes puede rescindir con un preaviso de 15 días.
+
+CLÁUSULA SEXTA - JURISDICCIÓN Y LEY APLICABLE:
+El presente contrato se rige por la legislación vigente en {ciudad}. Cualquier disputa será resuelta en los tribunales competentes de esta jurisdicción.
+
+Las partes aceptan todas las cláusulas del presente contrato.

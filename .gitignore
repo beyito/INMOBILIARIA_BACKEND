@@ -1,0 +1,82 @@
+# --------------------------
+# Entorno virtual
+# --------------------------
+venv/
+myenv/
+env/
+*.venv/
+_pycache_/
+*.pyc
+
+# --------------------------
+# Archivos de sistema
+# --------------------------
+.DS_Store
+Thumbs.db
+
+# --------------------------
+# Base de datos
+# --------------------------
+db.sqlite3
+
+# --------------------------
+# Configuración de Django
+# --------------------------
+*.log
+*.pot
+*.pyc
+*.pyo
+*.swp
+*.swo
+*.idea/
+*.vscode/
+
+# --------------------------
+# Archivos estáticos y media
+# --------------------------
+staticfiles/
+media/
+
+# --------------------------
+# Dependencias de Python
+# --------------------------
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# --------------------------
+# Pytest
+# --------------------------
+.cache
+.pytest_cache/
+
+# --------------------------
+# Coverage
+# --------------------------
+htmlcov/
+.coverage
+.coverage.*
+
+# --------------------------
+# Configuración sensible
+# --------------------------
+*.env
+.env
+
+
+# Dentro de cualquier carpeta "migrations":
+# 1) Ignora la carpeta _pycache_
+**/migrations/_pycache_/
+
+# 2) Ignora TODO lo demás en migrations...
+*/migrations/
+
+# 3) ...pero conserva el _init_.py
+!**/migrations/_init_.py
+
+# Ignorar carpetas __pycache__ y archivos .pyc
+__pycache__/
+*.py[cod]
+*.cpython-*.pyc
