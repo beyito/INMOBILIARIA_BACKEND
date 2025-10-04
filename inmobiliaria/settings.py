@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'comunicacion',
     'contrato',
     'inmueble',
+    'contacto',
 ]
 
 MIDDLEWARE = [
@@ -92,8 +93,8 @@ DATABASES = {
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT', cast=int),
         'OPTIONS': {
-    'sslmode': 'require'
-}
+            'sslmode': 'disable',  # Deshabilita el uso de SSL
+        },
     }
     
 }
