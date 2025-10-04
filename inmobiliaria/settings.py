@@ -93,7 +93,7 @@ DATABASES = {
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT', cast=int),
         'OPTIONS': {
-            'sslmode': 'disable',  # Deshabilita el uso de SSL
+            'sslmode': 'require',  # Deshabilita el uso de SSL
         },
     }
     

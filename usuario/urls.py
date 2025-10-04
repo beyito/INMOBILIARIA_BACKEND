@@ -45,6 +45,13 @@ urlpatterns = [
     path('listar_privilegios', views.listar_privilegios, name='listar_privilegios'), #PROBADO
 
     # --------------------------
+    # BITACORA
+    # --------------------------
+    path('leer_bitacora',views.BitacoraView.as_view(),name='leer_bitacora'),
+
+
+
+    # --------------------------
     # (Opcional) Usuario CRUD si luego quieres agregar
     # --------------------------
     # path('usuarios/', views.listar_usuarios, name='listar_usuarios'),

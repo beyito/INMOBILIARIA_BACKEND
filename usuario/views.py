@@ -19,7 +19,7 @@ from reportlab.lib import colors
 from django.http import HttpResponse
 
 from inmobiliaria.permissions import requiere_actualizacion,requiere_creacion, requiere_eliminacion, requiere_lectura, requiere_permiso
-# from .permissions import IsAdminRole, IsSuperUser
+from utils.encrypted_logger import registrar_accion, leer_logs
 import os
 import io
 # Create your views here.
@@ -47,6 +47,11 @@ def login(request):
 
     token, created = Token.objects.get_or_create(user=usuario)
     serializer = UsuarioSerializer(instance=usuario)
+    registrar_accion(
+        usuario=usuario,
+        accion="Inició sesión en el sistema",
+        ip=request.META.get("REMOTE_ADDR")
+    )
     return Response({
         "status": 1,
         "error": 0,
@@ -801,3 +806,34 @@ def registerAgente(request):
         "values": {"solicitud_id": solicitud.idSolicitud, "solicitud": serializer.data}
     })
 
+
+class BitacoraView(APIView):
+    # permission_classes = [IsAuthenticated]  # Solo usuarios autenticados
+
+    def get(self, request):
+        """
+        Listar bitácora (requiere llave del desarrollador)
+        """
+        llave = request.data.get("llave", None)
+
+        if not llave:
+            return Response({
+                "status": 2,
+                "error": 1,
+                "message": "Debe proporcionar la llave del desarrollador"
+            })
+
+        try:
+            registros = leer_logs(llave)
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "Bitácora desencriptada correctamente",
+                "values": registros
+            })
+        except Exception as e:
+            return Response({
+                "status": 2,
+                "error": 1,
+                "message": "Llave inválida o error al desencriptar"
+            })
