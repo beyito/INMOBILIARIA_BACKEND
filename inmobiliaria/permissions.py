@@ -33,7 +33,7 @@ def requiere_permiso(componente, accion):
                 
                 # ✅ CORRECCIÓN: status como segundo argumento posicional
                 return Response({
-                    "status": 0,
+                    "status": 2,
                     "error": 1,
                     "message": f"NO TIENE PERMISOS PARA {accion_texto} {componente.upper()}"
                 })  # Sin 'status='

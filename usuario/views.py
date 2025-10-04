@@ -5,7 +5,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework import status
-from .serializer import UsuarioSerializer, PrivilegioSerializer, GrupoSerializer, ComponenteSerializer, PasswordResetRequestSerializer, PasswordResetVerifyCodeSerializer, SetNewPasswordSerializer, SolicitudAgenteSerializer
+from .serializers import UsuarioSerializer, PrivilegioSerializer, GrupoSerializer, ComponenteSerializer, PasswordResetRequestSerializer, PasswordResetVerifyCodeSerializer, SetNewPasswordSerializer, SolicitudAgenteSerializer
 from django.core.mail import send_mail
 from django.contrib.auth.models import User
 from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente
@@ -31,7 +31,7 @@ def login(request):
         print(usuario)
     except:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "USUARIO NO ENCONTRADO",
             "values": None
@@ -39,7 +39,7 @@ def login(request):
     
     if not usuario.check_password(request.data['password']):
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "CONTRASEÑA INCORRECTA",
             "values": None
@@ -89,7 +89,7 @@ def register(request):
         })
 
     return Response({
-        "status": 2,
+        "status": 0,
         "error": 1,
         "message": "ERROR EN EL REGISTRO",
         "values": serializer.errors
@@ -135,7 +135,7 @@ def editar_usuario(request, usuario_id):
         })
     else:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "ERROR AL EDITAR USUARIO",
             "values": serializer.errors
@@ -181,7 +181,7 @@ def crear_grupo(request):
 
     if not nombre:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "EL NOMBRE DEL GRUPO ES REQUERIDO",
             "values": None
@@ -190,7 +190,7 @@ def crear_grupo(request):
     grupo, created = Grupo.objects.get_or_create(nombre=nombre, defaults={"descripcion": descripcion})
     if not created:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "EL GRUPO YA EXISTE",
             "values": None
@@ -292,7 +292,7 @@ def crear_componente(request):
         })
     else:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "ERROR AL CREAR COMPONENTE",
             "values": serializer.errors
@@ -314,7 +314,7 @@ def editar_componente(request, componente_id):
         })
     else:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "ERROR AL EDITAR COMPONENTE",
             "values": serializer.errors
@@ -368,7 +368,7 @@ def asignar_privilegio(request):
 
     if not grupo_id or not componente_id:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "GRUPO_ID Y COMPONENTE_ID SON REQUERIDOS",
             "values": None
@@ -445,7 +445,7 @@ def asignar_grupo_usuario(request):
 
     if not username or not grupo_id:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "USERNAME y GRUPO_ID son requeridos",
             "values": None
@@ -456,7 +456,7 @@ def asignar_grupo_usuario(request):
         grupo = get_object_or_404(Grupo, id=grupo_id)
     except:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "USUARIO O GRUPO NO ENCONTRADO",
             "values": None
@@ -483,7 +483,7 @@ def asignar_privilegios_grupo(request):
 
     if not grupo_id or not privilegios:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "GRUPO_ID y PRIVILEGIOS son requeridos",
             "values": None
@@ -493,7 +493,7 @@ def asignar_privilegios_grupo(request):
         grupo = get_object_or_404(Grupo, id=grupo_id)
     except:
         return Response({
-            "status": 2,
+            "status": 0,
             "error": 1,
             "message": "GRUPO NO ENCONTRADO",
             "values": None
@@ -702,7 +702,7 @@ class PasswordResetVerifyCodeView(APIView):
             reset_code = PasswordResetCode.objects.filter(user=user, code=code, is_used=False).last()
             if not reset_code or not reset_code.is_valid():
                 return Response({
-                    "status": 2,
+                    "status": 0,
                     "error": 1,
                     "message": "CÓDIGO INVÁLIDO O EXPIRADO",
                     "values": None
@@ -720,7 +720,7 @@ class PasswordResetVerifyCodeView(APIView):
             })
         except Usuario.DoesNotExist:
             return Response({
-                "status": 2,
+                "status": 0,
                 "error": 1,
                 "message": "USUARIO NO ENCONTRADO",
                 "values": None
@@ -742,7 +742,7 @@ class SetNewPasswordView(APIView):
             reset_code = PasswordResetCode.objects.filter(user=user, is_verified=True, is_used=False).last()
             if not reset_code or not reset_code.is_valid():
                 return Response({
-                    "status": 2,
+                    "status": 0,
                     "error": 1,
                     "message": "NO TIENES UN CÓDIGO VERIFICADO VÁLIDO",
                     "values": None
@@ -764,7 +764,7 @@ class SetNewPasswordView(APIView):
             })
         except Usuario.DoesNotExist:
             return Response({
-                "status": 2,
+                "status": 0,
                 "error": 1,
                 "message": "USUARIO NO ENCONTRADO",
                 "values": None
