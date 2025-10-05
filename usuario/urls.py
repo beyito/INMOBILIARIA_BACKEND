@@ -49,7 +49,7 @@ urlpatterns = [
     # --------------------------
     path('leer_bitacora',views.BitacoraView.as_view(),name='leer_bitacora'),
 
-
+    
 
     # --------------------------
     # (Opcional) Usuario CRUD si luego quieres agregar
