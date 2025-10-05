@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'usuario',
     'cita',
-    'comunicacion',
     'contrato',
     'inmueble',
     'contacto',
@@ -78,8 +77,15 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'inmobiliaria.wsgi.application'
+# WSGI_APPLICATION = 'inmobiliaria.wsgi.application'
+ASGI_APPLICATION = "tu_proyecto.asgi.application" #chat en tiempo real
 
+#chat en tiempo real
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
