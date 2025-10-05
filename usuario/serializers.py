@@ -9,7 +9,7 @@ class GrupoSerializer(serializers.ModelSerializer):
 
 class UsuarioSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    grupo_id = serializers.IntegerField(required=False)  # 👈 se envía y también se devuelve
+    grupo_id = serializers.IntegerField(required=False, allow_null=True)  # 👈 se envía y también se devuelve
     grupo_nombre = serializers.CharField(source='grupo.nombre', read_only=True)
 
     class Meta:
