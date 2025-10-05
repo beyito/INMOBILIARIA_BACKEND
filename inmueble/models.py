@@ -98,7 +98,7 @@ class AnuncioModel(models.Model):
             ('anticretico', 'Anticretico'),
 
         ],
-        default='PENDIENTE'
+        default='pendiente'
     )
     is_active = models.BooleanField(default=True)
 
