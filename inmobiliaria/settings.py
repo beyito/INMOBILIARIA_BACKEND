@@ -78,7 +78,7 @@ TEMPLATES = [
 ]
 
 # WSGI_APPLICATION = 'inmobiliaria.wsgi.application'
-ASGI_APPLICATION = "tu_proyecto.asgi.application" #chat en tiempo real
+ASGI_APPLICATION = "inmobiliaria.asgi.application" #chat en tiempo real
 
 #chat en tiempo real
 CHANNEL_LAYERS = {
@@ -179,7 +179,6 @@ EMAIL_HOST_USER = "7bee7fa1aa4c21"
 EMAIL_HOST_PASSWORD = "de7da4308fe225"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
 DEFAULT_FROM_EMAIL = "noreply@tuapp.com"
 
 #pip freeze > requirements.txt PARA GENERAR LISTA DE REQUIRIMIENTOS

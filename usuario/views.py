@@ -47,11 +47,11 @@ def login(request):
 
     token, created = Token.objects.get_or_create(user=usuario)
     serializer = UsuarioSerializer(instance=usuario)
-    # registrar_accion(
-    #     usuario=usuario,
-    #     accion="Inició sesión en el sistema",
-    #     ip=request.META.get("REMOTE_ADDR")
-    # )
+    registrar_accion(
+        usuario=usuario,
+        accion="Inició sesión en el sistema",
+        ip=request.META.get("REMOTE_ADDR")
+    )
     return Response({
         "status": 1,
         "error": 0,
