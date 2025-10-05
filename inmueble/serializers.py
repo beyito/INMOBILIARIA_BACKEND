@@ -21,7 +21,6 @@ class InmuebleSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CambioInmuebleSerializer(serializers.ModelSerializer):
-    inmueble = serializers.StringRelatedField(read_only=True)  # mostrar info del inmueble
     estado = serializers.CharField(read_only=True)
     fecha_solicitud = serializers.DateField(read_only=True)
     fecha_revision = serializers.DateField(read_only=True, allow_null=True)
