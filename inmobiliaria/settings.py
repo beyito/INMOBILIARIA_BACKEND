@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-#from decouple import config
+from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -101,7 +101,7 @@ DATABASES = {
     }
 }
 
-""" 
+ 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -113,10 +113,9 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'require',  # Deshabilita el uso de SSL
         },
-    }
-    
+    }    
 }
-"""
+
 
 # DATABASES = {
 #     'default': {
@@ -176,6 +175,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://192.168.100.12:8000",
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
+    "http://localhost:5173",
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

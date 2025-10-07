@@ -17,6 +17,8 @@ urlpatterns = [
     path('recuperacion-codigo/', views.PasswordResetRequestView.as_view(), name='codigo-recuperacion'),
     path('recuperacion-codigo-confirmar/', views.PasswordResetVerifyCodeView.as_view(), name='recuperacion-codigo-confirmar'),
     path("generarContratoPdf/", views.ContratoAgenteView.as_view(), name="generarContratoPdf"),
+    path("get_privilegios", views.get_privilegios, name = 'get_privilegios'),
+
 
     # --------------------------
     # GRUPO
