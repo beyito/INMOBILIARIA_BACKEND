@@ -72,7 +72,7 @@ class PrivilegioSerializer(serializers.ModelSerializer):
         model = Privilegio
         fields = [
             'id', 'grupo', 'grupo_id', 'componente', 'componente_id',
-            'puede_leer', 'puede_crear', 'puede_actualizar', 'puede_eliminar'
+            'puede_leer', 'puede_crear', 'puede_activar', 'puede_actualizar', 'puede_eliminar'
         ]  
 
 

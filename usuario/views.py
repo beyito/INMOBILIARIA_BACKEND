@@ -405,6 +405,8 @@ def editar_privilegio(request, privilegio_id):
     privilegio.puede_crear = request.data.get("puede_crear", privilegio.puede_crear)
     privilegio.puede_actualizar = request.data.get("puede_actualizar", privilegio.puede_actualizar)
     privilegio.puede_eliminar = request.data.get("puede_eliminar", privilegio.puede_eliminar)
+    privilegio.puede_activar = request.data.get("puede_activar", privilegio.puede_activar)
+
     privilegio.save()
 
     serializer = PrivilegioSerializer(privilegio)
@@ -810,7 +812,7 @@ def registerAgente(request):
 class BitacoraView(APIView):
     # permission_classes = [IsAuthenticated]  # Solo usuarios autenticados
 
-    def get(self, request):
+    def post(self, request):
         """
         Listar bitácora (requiere llave del desarrollador)
         """

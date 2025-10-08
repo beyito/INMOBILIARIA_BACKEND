@@ -49,7 +49,7 @@ urlpatterns = [
     # --------------------------
     # BITACORA
     # --------------------------
-    path('leer_bitacora',views.BitacoraView.as_view(),name='leer_bitacora'),
+    path('leer_bitacora/',views.BitacoraView.as_view(),name='leer_bitacora'),
 
     
 
