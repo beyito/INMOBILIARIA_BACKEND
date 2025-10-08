@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import InmuebleModel, CambioInmuebleModel, TipoInmuebleModel
+from .models import InmuebleModel, CambioInmuebleModel, TipoInmuebleModel, AnuncioModel, FotoModel
 from .serializers import InmuebleSerializer, CambioInmuebleSerializer, TipoInmuebleSerializer
 from utils.encrypted_logger import registrar_accion
 from inmobiliaria.permissions import requiere_permiso 
@@ -388,3 +388,26 @@ def editar_inmueble(request, inmueble_id):
 #     })
 
 
+# GESTION DE ANUNCIOS
+
+@api_view(['GET'])
+@requiere_permiso("Anuncio", "leer")
+def listar_anuncios_disponibles(request):
+    # Filtramos los anuncios disponibles
+    anuncios = AnuncioModel.objects.filter(estado='disponible')
+
+    # Obtenemos los IDs de los inmuebles relacionados
+    inmueble_ids = anuncios.values_list('inmueble_id', flat=True)
+
+    # Filtramos los inmuebles correspondientes
+    inmuebles = InmuebleModel.objects.filter(id__in=inmueble_ids)
+
+    # Serializamos
+    serializer = InmuebleSerializer(inmuebles, many=True)
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTADO DE INMUEBLES DISPONIBLES",
+        "values": {"inmueble": serializer.data}
+    })

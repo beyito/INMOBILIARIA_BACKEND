@@ -107,3 +107,19 @@ class AnuncioModel(models.Model):
 
     class Meta:
         db_table = "anuncio"
+
+class FotoModel(models.Model):
+    inmueble = models.ForeignKey(
+        InmuebleModel,
+        on_delete=models.CASCADE,
+        related_name='fotos'
+    )
+    url = models.URLField(max_length=500)  # URL completa de la foto en la nube
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Foto {self.id} del Inmueble {self.inmueble.id}"
+    class Meta:
+        db_table = "foto"

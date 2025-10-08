@@ -23,4 +23,7 @@ urlpatterns = [
     path('editar_inmueble/<int:inmueble_id>', views.editar_inmueble, name='editar_inmueble'),
 
 
+# GESTION DE ANUNCIOS
+    path('listar_anuncios_disponibles',views.listar_anuncios_disponibles, name='listar_anuncios_disponibles'),
+
 ]
