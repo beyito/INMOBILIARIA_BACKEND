@@ -76,13 +76,40 @@ def profile(request):
 @api_view(['POST'])
 @requiere_permiso("Usuario","crear")  # Este decorador ahora incluye el permission class
 def register(request):
+    grupo_id = request.data.get('grupo_id')
+    print('DATOS ENTRANTES',request.data)
+    # Si es agente (grupo_id=2), crear solicitud
+    if str(grupo_id) == '2':
+        print(request.data)
+        serializer = SolicitudAgenteSerializer(data=request.data)
+        print('serializer', serializer)
+        if serializer.is_valid():
+            solicitud = serializer.save()
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "SOLICITUD DE AGENTE CREADA, PENDIENTE DE APROBACIÓN",
+                "values": serializer.data
+            })
+        print(serializer.errors)
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "ERROR EN LA SOLICITUD",
+            "values": serializer.errors
+        })
+
+    # Si es cliente u otro grupo, registrar normalmente
     serializer = UsuarioSerializer(data=request.data)
+    print('serializerUsuario', serializer)
+
     if serializer.is_valid():
-        usuario = serializer.save()
+        # Asignar grupo_id = 3 antes de guardar
+        usuario = serializer.save(grupo_id=3)
+
         token, created = Token.objects.get_or_create(user=usuario)
 
         usuario_serializer = UsuarioSerializer(instance=usuario)
-
         return Response({
             "status": 1,
             "error": 0,
@@ -92,6 +119,14 @@ def register(request):
                 "usuario": usuario_serializer.data
             }
         })
+    else:
+        # Muy recomendable devolver errores si el serializer no es válido
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "ERROR EN LA SOLICITUD",
+            "values": serializer.errors
+        }, status=400)
 
     return Response({
         "status": 0,
