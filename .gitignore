@@ -80,4 +80,3 @@ htmlcov/
 __pycache__/
 *.py[cod]
 *.cpython-*.pyc
-setting.py

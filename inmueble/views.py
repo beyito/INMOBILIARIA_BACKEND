@@ -102,25 +102,34 @@ def listar_tipo_inmuebles(request):
 @requiere_permiso("Inmueble", "crear")
 def agente_registrar_inmueble(request):
     data = request.data.copy()
-    data['agente'] = request.user.id  # asignamos el agente desde el token
-    # data['estado'] = 'pendiente' # estado inicial siempre pendiente
+    data['agente'] = request.user.id
+
     serializer = InmuebleSerializer(data=data)
     if serializer.is_valid():
-        serializer.save()
+        inmueble = serializer.save()
+
+        # 👇 CAMBIO MÍNIMO: crear fotos desde URLs si vinieron
+        urls = request.data.get('fotos_urls', [])
+        if isinstance(urls, list) and urls:
+            FotoModel.objects.bulk_create(
+                [FotoModel(inmueble=inmueble, url=u.strip()) for u in urls if isinstance(u, str) and u.strip()]
+            )
+
+        # re-serializa para incluir fotos recién creadas
+        out = InmuebleSerializer(inmueble)
         return Response({
             "status": 1,
             "error": 0,
             "message": "INMUEBLE REGISTRADO CORRECTAMENTE ESPERANDO APROBACION DEL ADMINISTRADOR",
-            "values": {"inmueble": serializer.data}
+            "values": {"inmueble": out.data}
         })
-    
+
     return Response({
         "status": 0,
         "error": 1,
         "message": "ERROR AL REGISTRAR EL INMUEBLE",
         "values": serializer.errors
     })
-
 
 # EL AGENTE ENVIA SOLICITUD AL ADMIN PARA HACER CAMBIOS
 
@@ -502,3 +511,37 @@ def obtener_inmueble(request, pk):
     )
     data = InmuebleSerializer(obj, context={'request': request}).data
     return _ok({"inmueble": data}, message="DETALLE DE INMUEBLE")
+
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def listar_inmuebles_por_estado(request):
+    """
+    Retorna inmuebles filtrados por estado:
+    ?estado=pendiente | aprobado | rechazado | todos
+    Ejemplos:
+      /inmueble/listar_inmuebles_por_estado/?estado=aprobado
+      /inmueble/listar_inmuebles_por_estado/?estado=todos
+    """
+    try:
+        estado = request.GET.get('estado', 'pendiente').lower()
+
+        inmuebles = InmuebleModel.objects.filter(is_active=True)
+
+        if estado != 'todos':
+            inmuebles = inmuebles.filter(estado=estado)
+
+        serializer = InmuebleSerializer(inmuebles, many=True)
+
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": f"LISTADO DE INMUEBLES ({estado.upper()})",
+            "values": {"inmuebles": serializer.data}
+        })
+    except Exception as e:
+        print(f"⚠ Error en listar_inmuebles_por_estado: {e}")
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error interno: {str(e)}"
+        }, status=500)
