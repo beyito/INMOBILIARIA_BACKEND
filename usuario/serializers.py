@@ -22,7 +22,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'password': {'write_only': True}
         }
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si es actualización (instance existe), password no es obligatorio
+        if self.instance:
+            self.fields['password'].required = False
+            self.fields['password'].allow_blank = True
+            
     def create(self, validated_data):
         grupo_id = validated_data.pop('grupo_id', None)
         password = validated_data.pop('password')
