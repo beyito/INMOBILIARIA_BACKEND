@@ -16,7 +16,7 @@ urlpatterns = [
     path('recuperacion-codigo-actualizar/', views.SetNewPasswordView.as_view(), name='recuperacion-codigo-actualizar'),
     path('recuperacion-codigo/', views.PasswordResetRequestView.as_view(), name='codigo-recuperacion'),
     path('recuperacion-codigo-confirmar/', views.PasswordResetVerifyCodeView.as_view(), name='recuperacion-codigo-confirmar'),
-    path("generarContratoPdf/", views.ContratoAgenteView.as_view(), name="generarContratoPdf"),
+    path("generarContratoPdf", views.ContratoAgenteView.as_view(), name="generarContratoPdf"),
     path("get_privilegios", views.get_privilegios, name = 'get_privilegios'),
 
 
@@ -50,7 +50,11 @@ urlpatterns = [
     # BITACORA
     # --------------------------
     path('leer_bitacora/',views.BitacoraView.as_view(),name='leer_bitacora'),
-
+    # --------------------------
+    # SOLICITUD AGENTE
+    # --------------------------
+    path('solicitudes-agentes', views.listar_solicitudes_agentes, name='listar_solicitudes_agentes'),
+    path('solicitudes-agentes/<int:solicitud_id>/estado', views.cambiar_estado_solicitud_agente, name='cambiar_estado_solicitud_agente'),
     
 
     # --------------------------
