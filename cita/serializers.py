@@ -62,7 +62,8 @@ class CitaSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user or not request.user.is_authenticated:
             raise serializers.ValidationError("Autenticación requerida.")
-        agente = request.user
+        # En create: usa request.user; en update: valida contra el agente de la cita ya existente
+        agente = getattr(self.instance, "agente", request.user)
 
         fecha_cita = attrs.get("fecha_cita", getattr(self.instance, "fecha_cita", None))
         hi = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
