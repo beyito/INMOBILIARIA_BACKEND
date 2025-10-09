@@ -90,16 +90,16 @@ CHANNEL_LAYERS = {
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'inmobiliaria',     # nombre de tu base de datos
-        'USER': 'postgres',
-        'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': 'inmobiliaria',     # nombre de tu base de datos
+#         'USER': 'postgres',
+#         'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
 
  
 DATABASES = {
@@ -176,6 +176,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.100.12:8000",
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
     "http://localhost:5173",
+    "https://inmueble-front.vercel.app",
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
