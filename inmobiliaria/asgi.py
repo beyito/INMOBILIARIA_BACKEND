@@ -8,9 +8,16 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
-
-from django.core.asgi import get_asgi_application
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'inmobiliaria.settings')
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from contacto.middleware import TokenAuthMiddleware
+from contacto import routing # importa el routing de tu app de chat
 
-application = get_asgi_application()
+
+application = ProtocolTypeRouter({
+    "http": get_asgi_application(),  # HTTP normal
+    "websocket": TokenAuthMiddleware(
+        URLRouter(routing.websocket_urlpatterns)
+    ),
+})

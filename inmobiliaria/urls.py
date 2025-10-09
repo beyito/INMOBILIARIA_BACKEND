@@ -23,4 +23,5 @@ urlpatterns = [
     path('inmueble/', include('inmueble.urls')),
     path('contacto/', include('contacto.urls')),
     path('cita/'    , include('cita.urls')),
+    path('api/desempeno/', include('desempeno.urls')),
 ]

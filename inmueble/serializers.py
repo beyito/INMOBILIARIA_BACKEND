@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import InmuebleModel, TipoInmuebleModel, CambioInmuebleModel
+from .models import InmuebleModel, TipoInmuebleModel, CambioInmuebleModel, FotoModel
 from usuario.models import Usuario
 from usuario.serializers import UsuarioSerializer
 class TipoInmuebleSerializer(serializers.ModelSerializer):
@@ -8,7 +8,13 @@ class TipoInmuebleSerializer(serializers.ModelSerializer):
         model = TipoInmuebleModel
         fields = '__all__'
 
+class FotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FotoModel
+        fields = ['id', 'url', 'descripcion', 'fecha_creacion', 'is_active']
+        
 class InmuebleSerializer(serializers.ModelSerializer):
+    fotos = FotoSerializer(many=True, read_only=True)  # related_name='fotos'
     tipo_inmueble = TipoInmuebleSerializer(read_only=True)
     tipo_inmueble_id = serializers.PrimaryKeyRelatedField(
         queryset=TipoInmuebleModel.objects.all(),
@@ -21,7 +27,6 @@ class InmuebleSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CambioInmuebleSerializer(serializers.ModelSerializer):
-    inmueble = serializers.StringRelatedField(read_only=True)  # mostrar info del inmueble
     estado = serializers.CharField(read_only=True)
     fecha_solicitud = serializers.DateField(read_only=True)
     fecha_revision = serializers.DateField(read_only=True, allow_null=True)

@@ -405,6 +405,8 @@ def editar_privilegio(request, privilegio_id):
     privilegio.puede_crear = request.data.get("puede_crear", privilegio.puede_crear)
     privilegio.puede_actualizar = request.data.get("puede_actualizar", privilegio.puede_actualizar)
     privilegio.puede_eliminar = request.data.get("puede_eliminar", privilegio.puede_eliminar)
+    privilegio.puede_activar = request.data.get("puede_activar", privilegio.puede_activar)
+
     privilegio.save()
 
     serializer = PrivilegioSerializer(privilegio)
@@ -810,7 +812,7 @@ def registerAgente(request):
 class BitacoraView(APIView):
     # permission_classes = [IsAuthenticated]  # Solo usuarios autenticados
 
-    def get(self, request):
+    def post(self, request):
         """
         Listar bitácora (requiere llave del desarrollador)
         """
@@ -837,3 +839,43 @@ class BitacoraView(APIView):
                 "error": 1,
                 "message": "Llave inválida o error al desencriptar"
             })
+        
+
+@api_view(['GET'])
+def get_privilegios(request):
+    user = request.user
+
+    # Si el grupo del usuario es administrador
+    if user.grupo.nombre.lower() == 'administrador':
+        # Devuelve todos los componentes con permisos en True
+        componentes = Componente.objects.all()
+        privilegios_list = []
+        for c in componentes:
+            privilegios_list.append({
+                "componente": c.nombre.lower(),
+                "puede_crear": True,
+                "puede_actualizar": True,
+                "puede_eliminar": True,
+                "puede_leer": True,
+                "puede_activar": True
+            })
+    else:
+        # Filtrar privilegios reales según el grupo del usuario
+        privilegios = Privilegio.objects.filter(grupo=user.grupo.id)
+        privilegios_list = []
+        for p in privilegios:
+            privilegios_list.append({
+                "componente": p.componente.nombre.lower(),
+                "puede_crear": p.puede_crear,
+                "puede_actualizar": p.puede_actualizar,
+                "puede_eliminar": p.puede_eliminar,
+                "puede_leer": p.puede_leer,
+                "puede_activar": getattr(p, "puede_activar", False)
+            })
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTADO DE PRIVILEGIOS",
+        "values": privilegios_list
+    })

@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-#from decouple import config
+from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -43,10 +43,10 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'usuario',
     'cita',
-    'comunicacion',
     'contrato',
     'inmueble',
     'contacto',
+    'desempeno',
 ]
 
 MIDDLEWARE = [
@@ -78,8 +78,15 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'inmobiliaria.wsgi.application'
+# WSGI_APPLICATION = 'inmobiliaria.wsgi.application'
+ASGI_APPLICATION = "inmobiliaria.asgi.application" #chat en tiempo real
 
+#chat en tiempo real
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -94,7 +101,7 @@ DATABASES = {
     }
 }
 
-""" 
+ 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -106,10 +113,9 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'require',  # Deshabilita el uso de SSL
         },
-    }
-    
+    }    
 }
-"""
+
 
 # DATABASES = {
 #     'default': {
@@ -167,7 +173,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://192.168.100.12:8000",
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
+    "http://localhost:5173",
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -185,7 +193,6 @@ EMAIL_HOST_USER = "7bee7fa1aa4c21"
 EMAIL_HOST_PASSWORD = "de7da4308fe225"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
 DEFAULT_FROM_EMAIL = "noreply@tuapp.com"
 
 #pip freeze > requirements.txt PARA GENERAR LISTA DE REQUIRIMIENTOS

@@ -51,6 +51,7 @@ class InmuebleModel(models.Model):
 
 class CambioInmuebleModel(models.Model):
     agente = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="cambio_inmueble_agente")
+    inmueble = models.ForeignKey(InmuebleModel, on_delete=models.CASCADE, related_name="inmueble_cambio")
     titulo = models.CharField(max_length=100, blank=True, null=True)
     descripcion = models.CharField(max_length=300, blank=True, null=True)
     direccion = models.CharField(max_length=150, blank=True, null=True)
@@ -79,3 +80,46 @@ class CambioInmuebleModel(models.Model):
     
     class Meta:
         db_table = "cambio_inmueble"
+
+
+class AnuncioModel(models.Model):
+    inmueble = models.OneToOneField(
+        InmuebleModel,
+        on_delete=models.CASCADE,
+        related_name="anuncio"
+    )
+    fecha_publicacion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(
+        max_length=30,
+        choices=[
+            ('disponible', 'Disponible'),
+            ('alquilado', 'Alquilado'),
+            ('vendido', 'Vendido'),
+            ('anticretico', 'Anticretico'),
+
+        ],
+        default='pendiente'
+    )
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Anuncio de {self.inmueble.titulo or 'Inmueble sin título'} - {self.estado}"
+
+    class Meta:
+        db_table = "anuncio"
+
+class FotoModel(models.Model):
+    inmueble = models.ForeignKey(
+        InmuebleModel,
+        on_delete=models.CASCADE,
+        related_name='fotos'
+    )
+    url = models.URLField(max_length=500)  # URL completa de la foto en la nube
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Foto {self.id} del Inmueble {self.inmueble.id}"
+    class Meta:
+        db_table = "foto"

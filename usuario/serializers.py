@@ -9,7 +9,7 @@ class GrupoSerializer(serializers.ModelSerializer):
 
 class UsuarioSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    grupo_id = serializers.IntegerField(required=False)  # 👈 se envía y también se devuelve
+    grupo_id = serializers.IntegerField(required=False, allow_null=True)  # 👈 se envía y también se devuelve
     grupo_nombre = serializers.CharField(source='grupo.nombre', read_only=True)
 
     class Meta:
@@ -72,7 +72,7 @@ class PrivilegioSerializer(serializers.ModelSerializer):
         model = Privilegio
         fields = [
             'id', 'grupo', 'grupo_id', 'componente', 'componente_id',
-            'puede_leer', 'puede_crear', 'puede_actualizar', 'puede_eliminar'
+            'puede_leer', 'puede_crear', 'puede_activar', 'puede_actualizar', 'puede_eliminar'
         ]  
 
 
