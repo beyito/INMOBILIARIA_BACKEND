@@ -24,91 +24,40 @@ import os
 import io
 # Create your views here.
 
-# @api_view(['POST']) 
-# def login(request):
-#     try:
-#         usuario = get_object_or_404(Usuario, username=request.data['username'])
-#         print(usuario)
-#     except:
-#         return Response({
-#             "status": 0,
-#             "error": 1,
-#             "message": "USUARIO NO ENCONTRADO",
-#             "values": None
-#         })
-    
-#     if not usuario.check_password(request.data['password']):
-#         return Response({
-#             "status": 0,
-#             "error": 1,
-#             "message": "CONTRASEÑA INCORRECTA",
-#             "values": None
-#         })
-
-#     token, created = Token.objects.get_or_create(user=usuario)
-#     serializer = UsuarioSerializer(instance=usuario)
-#     registrar_accion(
-#         usuario=usuario,
-#         accion="Inició sesión en el sistema",
-#         ip=request.META.get("REMOTE_ADDR")
-#     )
-#     return Response({
-#         "status": 1,
-#         "error": 0,
-#         "message": "LOGIN EXITOSO",
-#         "values": {"token": token.key, "usuario": serializer.data}
-#     },)
-
-@api_view(['POST'])
+@api_view(['POST']) 
 def login(request):
     try:
-        # 1️⃣ Buscar usuario
         usuario = get_object_or_404(Usuario, username=request.data['username'])
-        print(f"👤 Usuario encontrado: {usuario.username}")
-
-        # 2️⃣ Verificar contraseña
-        if not usuario.check_password(request.data['password']):
-            return Response({
-                "status": 0,
-                "error": 1,
-                "message": "CONTRASEÑA INCORRECTA",
-                "values": None
-            }, status=status.HTTP_401_UNAUTHORIZED)
-
-        # 3️⃣ Crear o recuperar token
-        token, created = Token.objects.get_or_create(user=usuario)
-        serializer = UsuarioSerializer(instance=usuario)
-
-        # 4️⃣ Registrar acción en bitácora (sin romper el flujo si hay error)
-        try:
-            registrar_accion(
-                usuario=usuario,
-                accion="Inició sesión en el sistema",
-                ip=request.META.get("REMOTE_ADDR")
-            )
-        except Exception as e:
-            print("⚠️ Error registrando en bitácora:", e)
-
-        # 5️⃣ Respuesta exitosa
-        print(f"✅ Login exitoso para {usuario.username}")
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "LOGIN EXITOSO",
-            "values": {
-                "token": token.key,
-                "usuario": serializer.data
-            }
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        print("❌ ERROR LOGIN:", e)
+        print(usuario)
+    except:
         return Response({
             "status": 0,
             "error": 1,
-            "message": f"ERROR INTERNO: {str(e)}",
+            "message": "USUARIO NO ENCONTRADO",
             "values": None
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        })
+    
+    if not usuario.check_password(request.data['password']):
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "CONTRASEÑA INCORRECTA",
+            "values": None
+        })
+
+    token, created = Token.objects.get_or_create(user=usuario)
+    serializer = UsuarioSerializer(instance=usuario)
+    registrar_accion(
+        usuario=usuario,
+        accion="Inició sesión en el sistema",
+        ip=request.META.get("REMOTE_ADDR")
+    )
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LOGIN EXITOSO",
+        "values": {"token": token.key, "usuario": serializer.data}
+    },)
 
 
 @api_view(["GET", "POST"])  

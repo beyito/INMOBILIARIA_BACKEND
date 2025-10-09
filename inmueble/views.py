@@ -411,3 +411,53 @@ def listar_anuncios_disponibles(request):
         "message": "LISTADO DE INMUEBLES DISPONIBLES",
         "values": {"inmueble": serializer.data}
     })
+
+# @api_view(['GET'])
+# @requiere_permiso("Inmueble", "leer")
+# def listar_inmuebles_pendientes(request):
+#     """
+#     Retorna todos los inmuebles con estado = 'pendiente' para revisión del administrador.
+#     """
+#     inmuebles = InmuebleModel.objects.filter(estado='pendiente', is_active=True)
+#     serializer = InmuebleSerializer(inmuebles, many=True)
+
+#     return Response({
+#         "status": 1,
+#         "error": 0,
+#         "message": "LISTADO DE INMUEBLES PENDIENTES",
+#         "values": {"inmuebles": serializer.data}
+#     })
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def listar_inmuebles_por_estado(request):
+    """
+    Retorna inmuebles filtrados por estado:
+    ?estado=pendiente | aprobado | rechazado | todos
+
+    Ejemplos:
+      /inmueble/listar_inmuebles_por_estado/?estado=aprobado
+      /inmueble/listar_inmuebles_por_estado/?estado=todos
+    """
+    try:
+        estado = request.GET.get('estado', 'pendiente').lower()
+
+        inmuebles = InmuebleModel.objects.filter(is_active=True)
+
+        if estado != 'todos':
+            inmuebles = inmuebles.filter(estado=estado)
+
+        serializer = InmuebleSerializer(inmuebles, many=True)
+
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": f"LISTADO DE INMUEBLES ({estado.upper()})",
+            "values": {"inmuebles": serializer.data}
+        })
+    except Exception as e:
+        print(f"⚠️ Error en listar_inmuebles_por_estado: {e}")
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error interno: {str(e)}"
+        }, status=500)
