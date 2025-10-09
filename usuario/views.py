@@ -60,7 +60,6 @@ def login(request):
     },)
 
 
-
 @api_view(["GET", "POST"])  
 @permission_classes([IsAuthenticated])
 def profile(request):
