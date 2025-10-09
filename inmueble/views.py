@@ -411,3 +411,94 @@ def listar_anuncios_disponibles(request):
         "message": "LISTADO DE INMUEBLES DISPONIBLES",
         "values": {"inmueble": serializer.data}
     })
+
+
+
+def _ok(values, message="OK"):
+    return Response({"status": 1, "error": 0, "message": message, "values": values})
+
+def _err(errors, message="ERROR", http=status.HTTP_400_BAD_REQUEST):
+    return Response({"status": 0, "error": 1, "message": message, "values": errors}, status=http)
+
+@api_view(['GET'])
+def listar_inmuebles(request):
+    """
+    Filtros soportados (query params):
+    - tipo: venta | alquiler | anticretico
+    - ciudad: string
+    - zona: string
+    - min_precio, max_precio: números
+    - q: término de búsqueda (titulo, descripcion, dirección)
+    - page, page_size: paginación simple
+    """
+    qs = (InmuebleModel.objects
+          .select_related()  # si hay FKs útiles
+          .prefetch_related('fotos')  # related_name='fotos'
+          .all())
+
+    # Filtros
+    tipo = request.GET.get('tipo')
+    if tipo:
+        qs = qs.filter(tipo_operacion__iexact=tipo)
+
+    ciudad = request.GET.get('ciudad')
+    if ciudad:
+        qs = qs.filter(ciudad__icontains=ciudad)
+
+    zona = request.GET.get('zona')
+    if zona:
+        qs = qs.filter(zona__icontains=zona)
+
+    try:
+        min_precio = request.GET.get('min_precio')
+        if min_precio is not None:
+            qs = qs.filter(precio__gte=float(min_precio))
+        max_precio = request.GET.get('max_precio')
+        if max_precio is not None:
+            qs = qs.filter(precio__lte=float(max_precio))
+    except ValueError:
+        return _err({"precio": "min_precio/max_precio inválidos"})
+
+    q = request.GET.get('q')
+    if q:
+        qs = qs.filter(
+            Q(titulo__icontains=q) |
+            Q(descripcion__icontains=q) |
+            Q(direccion__icontains=q)
+        )
+
+    # Orden por defecto (más recientes primero si tienes fecha_creacion)
+    if hasattr(InmuebleModel, 'fecha_creacion'):
+        qs = qs.order_by('-fecha_creacion')
+    else:
+        qs = qs.order_by('-id')
+
+    # Paginación simple
+    try:
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 12))
+    except ValueError:
+        return _err({"paginacion": "page/page_size inválidos"})
+
+    total = qs.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_qs = qs[start:end]
+
+    data = InmuebleSerializer(page_qs, many=True, context={'request': request}).data
+    return _ok({
+        "inmuebles": data,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }, message="LISTA DE INMUEBLES")
+    
+
+@api_view(['GET'])
+def obtener_inmueble(request, pk):
+    obj = get_object_or_404(
+        InmuebleModel.objects.prefetch_related('fotos'),
+        pk=pk
+    )
+    data = InmuebleSerializer(obj, context={'request': request}).data
+    return _ok({"inmueble": data}, message="DETALLE DE INMUEBLE")

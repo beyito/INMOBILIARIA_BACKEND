@@ -15,6 +15,9 @@ urlpatterns = [
     path('eliminar_tipo_inmueble/<int:tipo_id>', views.eliminar_tipo_inmueble, name='eliminar_grupo'), #PROBADO
     path('activar_tipo_inmueble/<int:tipo_id>', views.activar_tipo_inmueble, name='activar_grupo'), #PROBADO
 
+    path('listar_inmuebles', views.listar_inmuebles, name='listar_inmuebles'),
+    path('inmueble/<int:pk>', views.obtener_inmueble, name='obtener_inmueble'),
+
 # PARA EL ADMIN
     path('aceptar_inmueble/<int:inmueble_id>', views.aceptar_inmueble, name='aceptar_inmueble'),
     path('rechazar_inmueble/<int:inmueble_id>', views.rechazar_inmueble, name='rechazar_inmueble'),
