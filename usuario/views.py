@@ -595,7 +595,7 @@ def asignar_privilegios_grupo(request):
 class ContratoAgenteView(APIView):
     def post(self, request):
         data = request.data
-
+        print("DATA", data)
         # Ruta del archivo de plantilla
         plantilla_path = os.path.join(settings.BASE_DIR, "usuario/contratoPDF/contrato_agente.txt")
         with open(plantilla_path, "r", encoding="utf-8") as f:
@@ -913,4 +913,78 @@ def get_privilegios(request):
         "error": 0,
         "message": "LISTADO DE PRIVILEGIOS",
         "values": privilegios_list
+    })
+
+# --------------------------
+# SOLICITUDES DE AGENTES
+# --------------------------
+
+@api_view(['GET'])
+@requiere_permiso("Usuario", "leer")
+def listar_solicitudes_agentes(request):
+    """
+    Muestra todas las solicitudes de agentes (pendientes, aceptadas o rechazadas)
+    """
+    solicitudes = SolicitudAgente.objects.all().order_by('-fecha_solicitud')
+    serializer = SolicitudAgenteSerializer(solicitudes, many=True)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTADO DE SOLICITUDES DE AGENTES",
+        "values": serializer.data
+    })
+
+
+@api_view(['PATCH'])
+def cambiar_estado_solicitud_agente(request, solicitud_id):
+    """
+    Cambia el estado de una solicitud de agente a 'aceptado' o 'rechazado'
+    """
+    solicitud = get_object_or_404(SolicitudAgente, idSolicitud=solicitud_id)
+    nuevo_estado = request.data.get('estado')
+
+    if nuevo_estado not in ['aceptado', 'rechazado']:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Estado inválido. Debe ser 'aceptado' o 'rechazado'.",
+            "values": None
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    solicitud.estado = nuevo_estado
+    solicitud.save()
+
+    # Si se aprueba, crear el usuario automáticamente
+    if nuevo_estado == 'aceptado':
+        usuario_existente = Usuario.objects.filter(correo=solicitud.correo).first()
+        if usuario_existente:
+            # Solo asigna grupo si no tiene
+            grupo_agente = Grupo.objects.filter(nombre__iexact='agente').first()
+            if grupo_agente and usuario_existente.grupo != grupo_agente:
+                usuario_existente.grupo = grupo_agente
+                usuario_existente.save()
+        else:
+            # Crear usuario
+            usuario = Usuario.objects.create_user(
+                username=solicitud.correo.split('@')[0],
+                correo=solicitud.correo,
+                nombre=solicitud.nombre,
+                telefono=solicitud.telefono,
+                password="123456",
+                grupo=grupo_agente
+            )
+            registrar_accion(
+                usuario= request.user,
+                accion="Registro de agente",
+                ip=request.META.get("REMOTE_ADDR")
+            )
+            Token.objects.create(user=usuario)
+
+
+    serializer = SolicitudAgenteSerializer(solicitud)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": f"Solicitud actualizada correctamente a '{nuevo_estado}'",
+        "values": serializer.data
     })
