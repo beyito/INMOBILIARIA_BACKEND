@@ -1,6 +1,7 @@
 # usuario/permissions.py
 # from rest_framework.permissions import BasePermission, SAFE_METHODS
 from requests import Response
+#from rest_framework.response import Response
 from rest_framework import permissions
 from usuario.models import Privilegio
 from functools import wraps
@@ -52,7 +53,9 @@ def has_permission(usuario, componente_nombre, accion):
     try:
         privilegio = Privilegio.objects.get(
             grupo=usuario.grupo,
-            componente__nombre=componente_nombre
+            #componente__nombre=componente_nombre
+            componente__nombre__iexact=componente_nombre
+
         )
     except Privilegio.DoesNotExist:
         return False

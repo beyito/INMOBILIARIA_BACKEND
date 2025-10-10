@@ -17,7 +17,8 @@ class TipoInmuebleModel(models.Model):
 
 class InmuebleModel(models.Model):
     agente = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="inmueble_agente")
-    cliente = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="inmueble_cliente")
+    cliente = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name="inmueble_cliente",
+                                null=True, blank=True)
     tipo_inmueble = models.ForeignKey(TipoInmuebleModel, on_delete=models.SET_NULL, null=True, blank=True)
     titulo = models.CharField(max_length=100, blank=True, null=True)
     descripcion = models.CharField(max_length=300, blank=True, null=True)
@@ -93,6 +94,7 @@ class AnuncioModel(models.Model):
         max_length=30,
         choices=[
             ('disponible', 'Disponible'),
+            ('pendiente', 'Pendiente'),
             ('alquilado', 'Alquilado'),
             ('vendido', 'Vendido'),
             ('anticretico', 'Anticretico'),
