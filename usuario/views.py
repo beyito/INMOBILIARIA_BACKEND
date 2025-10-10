@@ -987,3 +987,18 @@ def cambiar_estado_solicitud_agente(request, solicitud_id):
         "message": f"Solicitud actualizada correctamente a '{nuevo_estado}'",
         "values": serializer.data
     })
+# --------------------------
+# Listar Usuarios del grupo Agente
+# --------------------------
+
+@api_view(['GET'])
+@requiere_permiso("Usuario", "leer")
+def listar_usuarios_agente(request):
+    usuarios = Usuario.objects.filter(grupo__nombre__iexact='agente')
+    serializer = UsuarioSerializer(usuarios, many=True)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTADO DE USUARIOS DEL GRUPO AGENTE",
+        "values": serializer.data
+    })

@@ -55,7 +55,7 @@ urlpatterns = [
     # --------------------------
     path('solicitudes-agentes', views.listar_solicitudes_agentes, name='listar_solicitudes_agentes'),
     path('solicitudes-agentes/<int:solicitud_id>/estado', views.cambiar_estado_solicitud_agente, name='cambiar_estado_solicitud_agente'),
-    
+    path('listar-agentes', views.listar_usuarios_agente, name='listar_agentes'),
 
     # --------------------------
     # (Opcional) Usuario CRUD si luego quieres agregar
