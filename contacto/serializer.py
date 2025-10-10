@@ -21,10 +21,21 @@ class MensajeSerializer(serializers.ModelSerializer):
 # Serializador de Chats
 # --------------------------
 class ChatSerializer(serializers.ModelSerializer):
-    cliente = UsuarioSerializer(read_only=True)  # <- cambio
-    agente = UsuarioSerializer(read_only=True)    # <- cambio
+    # Solo lectura anidada
+    cliente = UsuarioSerializer(read_only=True)
+    agente = UsuarioSerializer(read_only=True)
+
+    # Para escritura con IDs
+    cliente_id = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), write_only=True, source='cliente'
+    )
+    agente_id = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), write_only=True, source='agente'
+    )
+
     mensajes = MensajeSerializer(many=True, read_only=True)
 
     class Meta:
         model = ChatModel
-        fields = ["id", "fecha_creacion", "cliente", "agente", "mensajes"]
+        fields = ["id", "fecha_creacion", "cliente", "agente", "mensajes", "cliente_id", "agente_id"]
+
