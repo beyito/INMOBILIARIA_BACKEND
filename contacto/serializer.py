@@ -3,26 +3,26 @@
 from rest_framework import serializers
 from .models import ChatModel, MensajeModel
 from usuario.models import Usuario
-
+from usuario.serializers import UsuarioSerializer
 
 # --------------------------
 # Serializador de Mensajes
 # --------------------------
 class MensajeSerializer(serializers.ModelSerializer):
     chat = serializers.PrimaryKeyRelatedField(queryset=ChatModel.objects.all())
-    usuario = serializers.PrimaryKeyRelatedField(queryset=Usuario.objects.all())
+    usuario = UsuarioSerializer(read_only=True)  # <- cambio importante
 
     class Meta:
         model = MensajeModel
-        fields = ["id", "chat", "usuario", "mensaje", "fecha_envio"]
+        fields = ["id", "chat", "usuario", "mensaje", "fecha_envio", "leido"]
 
 
 # --------------------------
 # Serializador de Chats
 # --------------------------
 class ChatSerializer(serializers.ModelSerializer):
-    cliente = serializers.PrimaryKeyRelatedField(queryset=Usuario.objects.all())
-    agente = serializers.PrimaryKeyRelatedField(queryset=Usuario.objects.all())
+    cliente = UsuarioSerializer(read_only=True)  # <- cambio
+    agente = UsuarioSerializer(read_only=True)    # <- cambio
     mensajes = MensajeSerializer(many=True, read_only=True)
 
     class Meta:
