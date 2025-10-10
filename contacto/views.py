@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from inmobiliaria.permissions import has_permission
+from rest_framework import status
+from rest_framework.decorators import api_view
 
 from .models import ChatModel, MensajeModel
 from .serializer import ChatSerializer, MensajeSerializer
@@ -39,11 +41,35 @@ class ChatViewSet(viewsets.ModelViewSet):
             "values": serializer.data
         })
 
+    # GET /contacto/chats/
+    def list(self, request, *args, **kwargs):
+        """
+        Devuelve la lista de chats en el formato:
+        {
+            "status": 1,
+            "error": 0,
+            "message": "CHATS OBTENIDOS",
+            "values": [...]
+        }
+        """
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": "CHATS OBTENIDOS",
+            "values": serializer.data
+        }, status=status.HTTP_200_OK)
+
     # POST /contacto/chats/
     def perform_create(self, serializer):
         # Verificar permiso de creación en componente Chat
         if not has_permission(self.request.user, "Chat", "crear"):
-            raise ValidationError("NO TIENE PERMISOS PARA CREAR CHAT")
+            return Response({
+                "status": 2,
+                "error": 1,
+                "message": "NO TIENE PERMISOS PARA CREAR CHAT"
+            })
 
         cliente = serializer.validated_data.get('cliente')
         agente = serializer.validated_data.get('agente')
@@ -52,8 +78,44 @@ class ChatViewSet(viewsets.ModelViewSet):
         if not agente.grupo or agente.grupo.nombre.strip().lower() != "agente":
             raise ValidationError("El agente seleccionado no es un agente inmobiliario válido.")
 
-        # Guardar un nuevo chat cada vez
-        serializer.save()
+        # 🔍 Verificar si ya existe un chat entre cliente y agente
+        existing_chat = ChatModel.objects.filter(cliente=cliente, agente=agente).first()
+
+        if existing_chat:
+            # Si ya existe, devolver el mismo formato que al crear uno nuevo
+            existing_serializer = self.get_serializer(existing_chat)
+            self.existing_chat_response = {
+                "status": 1,
+                "error": 0,
+                "message": "CHAT YA EXISTENTE ENTRE CLIENTE Y AGENTE",
+                "values": existing_serializer.data
+            }
+            return  # No crear uno nuevo
+
+        # Guardar un nuevo chat si no existe
+        chat = serializer.save()
+        self.created_chat_response = {
+            "status": 1,
+            "error": 0,
+            "message": "CHAT CREADO CORRECTAMENTE",
+            "values": self.get_serializer(chat).data
+        }
+
+    def get_queryset(self):
+        user = self.request.user
+        # devolver solo chats donde el usuario es cliente o agente
+        return ChatModel.objects.filter(cliente=user) | ChatModel.objects.filter(agente=user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        if hasattr(self, 'existing_chat_response'):
+            return Response(self.existing_chat_response, status=status.HTTP_200_OK)
+
+    # Si se creó uno nuevo, devolver ese body
+        return Response(self.created_chat_response, status=status.HTTP_201_CREATED)
 
 
 # --------------------------
@@ -78,3 +140,30 @@ class MensajeViewSet(viewsets.ModelViewSet):
             raise ValidationError("El usuario no es parte de este chat.")
 
         serializer.save()
+
+@api_view(['POST'])
+def marcar_leidos(request):
+    """
+    Marca como leídos los mensajes que reciban en la lista de IDs.
+    Body esperado: { "mensaje_ids": [1,2,3,...] }
+    """
+    print("llega:",request.data)
+    mensaje_ids = request.data.get("mensaje_ids", [])
+    if not isinstance(mensaje_ids, list) or not mensaje_ids:
+        return Response({
+            'success': False,
+            'data': None,
+            'error': 'No se proporcionaron IDs válidos'
+        }, status=400)
+
+    mensajes = MensajeModel.objects.filter(id__in=mensaje_ids)
+    mensajes.update(leido=True)
+
+    # Devolver IDs actualizados
+    datos = [{"id": m.id, "chat_id": m.chat.id, "leido": True} for m in mensajes]
+
+    return Response({
+        'success': True,
+        'data': datos,
+        'error': None
+    })

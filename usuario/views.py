@@ -941,7 +941,6 @@ def cambiar_estado_solicitud_agente(request, solicitud_id):
     """
     solicitud = get_object_or_404(SolicitudAgente, idSolicitud=solicitud_id)
     nuevo_estado = request.data.get('estado')
-
     if nuevo_estado not in ['aceptado', 'rechazado']:
         return Response({
             "status": 0,
@@ -956,9 +955,8 @@ def cambiar_estado_solicitud_agente(request, solicitud_id):
     # Si se aprueba, crear el usuario automáticamente
     if nuevo_estado == 'aceptado':
         usuario_existente = Usuario.objects.filter(correo=solicitud.correo).first()
+        grupo_agente = Grupo.objects.filter(nombre__iexact='agente').first()
         if usuario_existente:
-            # Solo asigna grupo si no tiene
-            grupo_agente = Grupo.objects.filter(nombre__iexact='agente').first()
             if grupo_agente and usuario_existente.grupo != grupo_agente:
                 usuario_existente.grupo = grupo_agente
                 usuario_existente.save()
@@ -985,5 +983,20 @@ def cambiar_estado_solicitud_agente(request, solicitud_id):
         "status": 1,
         "error": 0,
         "message": f"Solicitud actualizada correctamente a '{nuevo_estado}'",
+        "values": serializer.data
+    })
+# --------------------------
+# Listar Usuarios del grupo Agente
+# --------------------------
+
+@api_view(['GET'])
+@requiere_permiso("Usuario", "leer")
+def listar_usuarios_agente(request):
+    usuarios = Usuario.objects.filter(grupo__nombre__iexact='agente')
+    serializer = UsuarioSerializer(usuarios, many=True)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTADO DE USUARIOS DEL GRUPO AGENTE",
         "values": serializer.data
     })
