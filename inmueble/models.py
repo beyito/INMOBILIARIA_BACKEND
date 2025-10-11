@@ -1,3 +1,4 @@
+# inmueble/models.py
 from django.db import models
 from usuario.models import Usuario
 
