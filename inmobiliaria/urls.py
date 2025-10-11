@@ -1,3 +1,4 @@
+# inmobiliaria/urls.py
 """
 URL configuration for inmobiliaria project.
 

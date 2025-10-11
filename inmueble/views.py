@@ -1,3 +1,4 @@
+# inmueble/views.py
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -8,6 +9,7 @@ from .serializers import InmuebleSerializer, CambioInmuebleSerializer, TipoInmue
 from utils.encrypted_logger import registrar_accion
 from inmobiliaria.permissions import requiere_permiso 
 from datetime import date
+from django.db.models import Q, Count
 # Create your views here.
 #TIPO DE INMUEBLES
 
@@ -98,38 +100,102 @@ def listar_tipo_inmuebles(request):
 # INMUEBLES
 #PARA EL AGENTE Y ADMIN, SI LO HACE EL AGENTE NO ENVIA EL ESTADO, PORQUE SERÁ PENDIENTE
 
+# @api_view(['POST'])
+# @requiere_permiso("Inmueble", "crear")
+# def agente_registrar_inmueble(request):
+#     data = request.data.copy()
+#     data['agente'] = request.user.id
+
+#     serializer = InmuebleSerializer(data=data)
+#     if serializer.is_valid():
+#         inmueble = serializer.save()
+
+#         # 👇 CAMBIO MÍNIMO: crear fotos desde URLs si vinieron
+#         urls = request.data.get('fotos_urls', [])
+#         if isinstance(urls, list) and urls:
+#             FotoModel.objects.bulk_create(
+#                 [FotoModel(inmueble=inmueble, url=u.strip()) for u in urls if isinstance(u, str) and u.strip()]
+#             )
+
+#         # re-serializa para incluir fotos recién creadas
+#         out = InmuebleSerializer(inmueble)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "INMUEBLE REGISTRADO CORRECTAMENTE ESPERANDO APROBACION DEL ADMINISTRADOR",
+#             "values": {"inmueble": out.data}
+#         })
+
+#     return Response({
+#         "status": 0,
+#         "error": 1,
+#         "message": "ERROR AL REGISTRAR EL INMUEBLE",
+#         "values": serializer.errors
+#     })
+# inmueble/views.py
+from usuario.models import Usuario
+
 @api_view(['POST'])
 @requiere_permiso("Inmueble", "crear")
 def agente_registrar_inmueble(request):
     data = request.data.copy()
-    data['agente'] = request.user.id
+
+    # ¿El que crea es admin?
+    grupo_nombre = getattr(getattr(request.user, 'grupo', None), 'nombre', '') or ''
+    es_admin = grupo_nombre.lower() == 'administrador'
+
+    if es_admin:
+        # El admin DEBE enviar el id del agente dueño del inmueble
+        agente_id = data.get('agente')
+        if not agente_id:
+            return Response({
+                "status": 0, "error": 1,
+                "message": "Como administrador debes enviar el campo 'agente' (id del agente dueño).",
+                "values": None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        # valida que exista el usuario y opcionalmente que sea del grupo 'agente'
+        try:
+            agente = Usuario.objects.get(id=agente_id)
+            if getattr(getattr(agente, 'grupo', None), 'nombre', '').lower() != 'agente':
+                return Response({
+                    "status": 0, "error": 1,
+                    "message": "El usuario indicado en 'agente' no pertenece al grupo Agente."
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Usuario.DoesNotExist:
+            return Response({
+                "status": 0, "error": 1,
+                "message": "El 'agente' indicado no existe."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        data['agente'] = agente.id
+    else:
+        # Si NO es admin, el agente autenticado es el dueño
+        data['agente'] = request.user.id
 
     serializer = InmuebleSerializer(data=data)
     if serializer.is_valid():
         inmueble = serializer.save()
 
-        # 👇 CAMBIO MÍNIMO: crear fotos desde URLs si vinieron
+        # Crear fotos desde URLs si vinieron
         urls = request.data.get('fotos_urls', [])
         if isinstance(urls, list) and urls:
             FotoModel.objects.bulk_create(
-                [FotoModel(inmueble=inmueble, url=u.strip()) for u in urls if isinstance(u, str) and u.strip()]
+                [FotoModel(inmueble=inmueble, url=u.strip())
+                 for u in urls if isinstance(u, str) and u.strip()]
             )
 
-        # re-serializa para incluir fotos recién creadas
         out = InmuebleSerializer(inmueble)
         return Response({
-            "status": 1,
-            "error": 0,
+            "status": 1, "error": 0,
             "message": "INMUEBLE REGISTRADO CORRECTAMENTE ESPERANDO APROBACION DEL ADMINISTRADOR",
             "values": {"inmueble": out.data}
         })
 
     return Response({
-        "status": 0,
-        "error": 1,
+        "status": 0, "error": 1,
         "message": "ERROR AL REGISTRAR EL INMUEBLE",
         "values": serializer.errors
-    })
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 # EL AGENTE ENVIA SOLICITUD AL ADMIN PARA HACER CAMBIOS
 
@@ -429,46 +495,108 @@ def _ok(values, message="OK"):
 def _err(errors, message="ERROR", http=status.HTTP_400_BAD_REQUEST):
     return Response({"status": 0, "error": 1, "message": message, "values": errors}, status=http)
 
+# @api_view(['GET'])
+# def listar_inmuebles(request):
+#     """
+#     Filtros soportados (query params):
+#     - tipo: venta | alquiler | anticretico
+#     - ciudad: string
+#     - zona: string
+#     - min_precio, max_precio: números
+#     - q: término de búsqueda (titulo, descripcion, dirección)
+#     - page, page_size: paginación simple
+#     """
+#     qs = (InmuebleModel.objects
+#           .select_related()  # si hay FKs útiles
+#           .prefetch_related('fotos')  # related_name='fotos'
+#           .all())
+
+#     # Filtros
+#     tipo = request.GET.get('tipo')
+#     if tipo:
+#         qs = qs.filter(tipo_operacion__iexact=tipo)
+
+#     ciudad = request.GET.get('ciudad')
+#     if ciudad:
+#         qs = qs.filter(ciudad__icontains=ciudad)
+
+#     zona = request.GET.get('zona')
+#     if zona:
+#         qs = qs.filter(zona__icontains=zona)
+
+#     try:
+#         min_precio = request.GET.get('min_precio')
+#         if min_precio is not None:
+#             qs = qs.filter(precio__gte=float(min_precio))
+#         max_precio = request.GET.get('max_precio')
+#         if max_precio is not None:
+#             qs = qs.filter(precio__lte=float(max_precio))
+#     except ValueError:
+#         return _err({"precio": "min_precio/max_precio inválidos"})
+
+#     q = request.GET.get('q')
+#     if q:
+#         qs = qs.filter(
+#             Q(titulo__icontains=q) |
+#             Q(descripcion__icontains=q) |
+#             Q(direccion__icontains=q)
+#         )
+
+#     # Orden por defecto (más recientes primero si tienes fecha_creacion)
+#     if hasattr(InmuebleModel, 'fecha_creacion'):
+#         qs = qs.order_by('-fecha_creacion')
+#     else:
+#         qs = qs.order_by('-id')
+
+#     # Paginación simple
+#     try:
+#         page = int(request.GET.get('page', 1))
+#         page_size = int(request.GET.get('page_size', 12))
+#     except ValueError:
+#         return _err({"paginacion": "page/page_size inválidos"})
+
+#     total = qs.count()
+#     start = (page - 1) * page_size
+#     end = start + page_size
+#     page_qs = qs[start:end]
+
+#     data = InmuebleSerializer(page_qs, many=True, context={'request': request}).data
+#     return _ok({
+#         "inmuebles": data,
+#         "total": total,
+#         "page": page,
+#         "page_size": page_size
+#     }, message="LISTA DE INMUEBLES")
+    
+
+
 @api_view(['GET'])
 def listar_inmuebles(request):
     """
-    Filtros soportados (query params):
-    - tipo: venta | alquiler | anticretico
-    - ciudad: string
-    - zona: string
-    - min_precio, max_precio: números
-    - q: término de búsqueda (titulo, descripcion, dirección)
-    - page, page_size: paginación simple
+    Lista solo los inmuebles aprobados y con anuncio activo (publicados).
     """
-    qs = (InmuebleModel.objects
-          .select_related()  # si hay FKs útiles
-          .prefetch_related('fotos')  # related_name='fotos'
-          .all())
+    qs = (
+        InmuebleModel.objects
+        .filter(estado="aprobado", is_active=True, anuncio__is_active=True)
+        .select_related("tipo_inmueble", "anuncio")
+        .prefetch_related("fotos")
+        .order_by("-id")
+    )
 
-    # Filtros
-    tipo = request.GET.get('tipo')
+    # Filtros opcionales
+    tipo = request.GET.get("tipo")
     if tipo:
         qs = qs.filter(tipo_operacion__iexact=tipo)
 
-    ciudad = request.GET.get('ciudad')
+    ciudad = request.GET.get("ciudad")
     if ciudad:
         qs = qs.filter(ciudad__icontains=ciudad)
 
-    zona = request.GET.get('zona')
+    zona = request.GET.get("zona")
     if zona:
         qs = qs.filter(zona__icontains=zona)
 
-    try:
-        min_precio = request.GET.get('min_precio')
-        if min_precio is not None:
-            qs = qs.filter(precio__gte=float(min_precio))
-        max_precio = request.GET.get('max_precio')
-        if max_precio is not None:
-            qs = qs.filter(precio__lte=float(max_precio))
-    except ValueError:
-        return _err({"precio": "min_precio/max_precio inválidos"})
-
-    q = request.GET.get('q')
+    q = request.GET.get("q")
     if q:
         qs = qs.filter(
             Q(titulo__icontains=q) |
@@ -476,32 +604,15 @@ def listar_inmuebles(request):
             Q(direccion__icontains=q)
         )
 
-    # Orden por defecto (más recientes primero si tienes fecha_creacion)
-    if hasattr(InmuebleModel, 'fecha_creacion'):
-        qs = qs.order_by('-fecha_creacion')
-    else:
-        qs = qs.order_by('-id')
+    serializer = InmuebleSerializer(qs, many=True, context={'request': request})
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "LISTA DE INMUEBLES APROBADOS Y PUBLICADOS",
+        "values": {"inmuebles": serializer.data}
+    })
 
-    # Paginación simple
-    try:
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 12))
-    except ValueError:
-        return _err({"paginacion": "page/page_size inválidos"})
 
-    total = qs.count()
-    start = (page - 1) * page_size
-    end = start + page_size
-    page_qs = qs[start:end]
-
-    data = InmuebleSerializer(page_qs, many=True, context={'request': request}).data
-    return _ok({
-        "inmuebles": data,
-        "total": total,
-        "page": page,
-        "page_size": page_size
-    }, message="LISTA DE INMUEBLES")
-    
 
 @api_view(['GET'])
 def obtener_inmueble(request, pk):
@@ -545,3 +656,151 @@ def listar_inmuebles_por_estado(request):
             "error": 1,
             "message": f"Error interno: {str(e)}"
         }, status=500)
+
+# =========================================================
+# 🟢 PUBLICAR INMUEBLE (solo agente con inmueble aprobado)
+# =========================================================
+@api_view(['POST'])
+@requiere_permiso("Anuncio", "crear")
+def publicar_inmueble(request, inmueble_id):
+    """
+    Permite al agente publicar un inmueble aprobado.
+    Si ya estaba publicado, lo reactiva.
+    """
+    inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+    agente = request.user
+
+    # Solo el agente dueño puede publicar
+    if inmueble.agente != agente:
+        return Response({
+            "status": 0, "error": 1,
+            "message": "No tienes permiso para publicar este inmueble."
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    # Solo se puede publicar si está aprobado
+    if inmueble.estado != "aprobado":
+        return Response({
+            "status": 0, "error": 1,
+            "message": "El inmueble debe estar aprobado antes de publicarse."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Crear o reactivar anuncio
+    anuncio, created = AnuncioModel.objects.get_or_create(
+        inmueble=inmueble,
+        defaults={"estado": "disponible", "is_active": True}  # 🟩 aseguramos que se marque como activo
+    )
+
+    # 🟩 Si ya existía, reactivar
+    if not created:
+        if not anuncio.is_active or anuncio.estado != "disponible":
+            anuncio.is_active = True
+            anuncio.estado = "disponible"
+            anuncio.save()
+            msg = "Anuncio reactivado correctamente."
+        else:
+            msg = "El inmueble ya estaba publicado."
+    else:
+        msg = "Inmueble publicado correctamente."
+
+    # 🟩 Registrar acción en bitácora (mantienes tu lógica)
+    registrar_accion(
+        usuario=agente,
+        accion=f"Publicó o reactivó el inmueble ID {inmueble.id}",
+        ip=request.META.get("REMOTE_ADDR")
+    )
+
+    # 🟩 Respuesta estandarizada
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": msg,
+        "values": {
+            "inmueble_id": inmueble.id,
+            "anuncio_id": anuncio.id,
+            "estado_anuncio": anuncio.estado,
+            "publicado": anuncio.is_active  # 🟩 agregado para claridad
+        }
+    })
+
+
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def mis_inmuebles(request):
+    """
+    ?estado = pendiente | aprobado | rechazado | publicados | todos
+    - 'aprobado'    => aprobados SIN anuncio activo/disponible
+    - 'publicados'  => aprobados CON anuncio activo/disponible
+    """
+    estado = (request.GET.get('estado') or 'todos').lower()
+
+    qs = (
+        InmuebleModel.objects
+        .filter(agente=request.user, is_active=True)
+        .select_related('tipo_inmueble')
+        .prefetch_related('fotos')
+        .order_by('-id')
+    )
+
+    if estado == 'pendiente':
+        qs = qs.filter(estado='pendiente')
+    elif estado == 'rechazado':
+        qs = qs.filter(estado='rechazado')
+    elif estado == 'aprobado':
+        # 👇 aprobados, pero NO publicados
+        qs = qs.filter(estado='aprobado')\
+               .exclude(anuncio__is_active=True, anuncio__estado='disponible')
+    elif estado == 'publicados':
+        # 👇 aprobados y publicados
+        qs = qs.filter(estado='aprobado', anuncio__is_active=True, anuncio__estado='disponible')
+    # else: 'todos' => sin filtro extra
+
+    serializer = InmuebleSerializer(qs, many=True)
+    return Response({
+        "status": 1, "error": 0,
+        "message": f"MIS INMUEBLES ({estado.upper()})",
+        "values": {"inmuebles": serializer.data}
+    })
+
+
+
+
+# @api_view(['GET'])
+# @requiere_permiso("Inmueble", "leer")
+# def resumen_mis_inmuebles(request):
+#     """
+#     Devuelve contadores para armar las pestañas: pendientes, aprobados, rechazados, publicados, todos.
+#     """
+#     base = InmuebleModel.objects.filter(agente=request.user, is_active=True)
+#     agg = base.aggregate(
+#         pendientes=Count('id', filter=Q(estado='pendiente')),
+#         aprobados=Count('id', filter=Q(estado='aprobado')),
+#         rechazados=Count('id', filter=Q(estado='rechazado')),
+#         publicados=Count('id', filter=Q(estado='aprobado', anuncio__is_active=True, anuncio__estado='disponible')),
+#         todos=Count('id'),
+#     )
+#     return Response({
+#         "status": 1, "error": 0, "message": "RESUMEN MIS INMUEBLES", "values": agg
+#     })
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def resumen_mis_inmuebles(request):
+    base = InmuebleModel.objects.filter(agente=request.user, is_active=True)
+
+    aprobados_sin_publicar = Q(estado='aprobado') & ~Q(
+        anuncio__is_active=True, anuncio__estado='disponible'
+    )
+    publicados_q = Q(estado='aprobado', anuncio__is_active=True, anuncio__estado='disponible')
+
+    agg = base.aggregate(
+        pendientes=Count('id', filter=Q(estado='pendiente')),
+        aprobados=Count('id', filter=aprobados_sin_publicar),   # 👈
+        rechazados=Count('id', filter=Q(estado='rechazado')),
+        publicados=Count('id', filter=publicados_q),
+        todos=Count('id'),
+    )
+    return Response({
+        "status": 1, "error": 0,
+        "message": "RESUMEN MIS INMUEBLES",
+        "values": agg
+    })
+
