@@ -1,3 +1,4 @@
+# usuario/models.py
 from django.db import models
 
 from django.contrib.auth.models import AbstractUser
@@ -135,3 +136,18 @@ class SolicitudAgente(models.Model):
 
     def __str__(self):
         return f"{self.nombre} - {self.estado}"
+
+
+## AGREGANDO MODELO PARA LAS NOTIFICACIONES PUSH
+
+class Dispositivo(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)  # Token FCM
+    plataforma = models.CharField(max_length=10, choices=[("android", "Android"), ("ios", "iOS")], default="android")
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.usuario} - {self.plataforma}"
+    
+    class Meta:
+        db_table = "dispositivo"

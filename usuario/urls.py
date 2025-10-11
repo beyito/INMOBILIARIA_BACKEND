@@ -1,3 +1,4 @@
+# usuario/urls.py
 from django.urls import path
 from . import views
 
@@ -58,11 +59,10 @@ urlpatterns = [
     path('listar-agentes', views.listar_usuarios_agente, name='listar_agentes'),
 
     # --------------------------
-    # (Opcional) Usuario CRUD si luego quieres agregar
+    # RUTA PARA LAS NOTIFICACIONES PUSH EN MOVIL
     # --------------------------
-    # path('usuarios/', views.listar_usuarios, name='listar_usuarios'),
-    # path('usuarios/crear/', views.crear_usuario, name='crear_usuario'),
-    # path('usuarios/editar/<int:usuario_id>/', views.editar_usuario, name='editar_usuario'),
+    path("registrar-token/", views.registrar_token, name="registrar-token"),
+
 ]
 
 # pasos para recuperar contraseña
