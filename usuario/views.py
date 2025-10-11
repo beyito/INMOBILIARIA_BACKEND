@@ -9,7 +9,7 @@ from rest_framework import status
 from .serializers import UsuarioSerializer, PrivilegioSerializer, GrupoSerializer, ComponenteSerializer, PasswordResetRequestSerializer, PasswordResetVerifyCodeSerializer, SetNewPasswordSerializer, SolicitudAgenteSerializer
 from django.core.mail import send_mail
 from django.contrib.auth.models import User
-from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente
+from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente, Dispositivo
 from rest_framework.views import APIView
 from django.conf import settings
 from reportlab.lib.pagesizes import LETTER
@@ -1168,3 +1168,30 @@ class ContratoServiciosInmobiliariosView(APIView):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="contrato_servicios_inmobiliarios_{data.get("cliente_nombre","cliente")}.pdf"'
         return response
+
+# --------------------------
+# registrar token de los dispositivos moviles para notificaciones push
+# --------------------------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def registrar_token(request):
+    usuario = request.user
+    token = request.data.get("token")
+    plataforma = request.data.get("plataforma", "android")
+
+    if not token:
+        return Response({"status": 2, "error": 1, "message": "no se pudo registrar el token"})
+
+    dispositivo, created = Dispositivo.objects.update_or_create(
+        usuario=usuario,
+        token=token,
+        defaults={"plataforma": plataforma},
+    )
+
+    return Response({
+                "status": 1,
+                "error": 0,
+                "message": "Se registró el token",
+                "values": token,
+    })
