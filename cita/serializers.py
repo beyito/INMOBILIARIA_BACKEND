@@ -1,133 +1,82 @@
-from datetime import date
-from django.utils import timezone
-from django.db import models
 from rest_framework import serializers
-from .models import Cita, DisponibilidadAgente, TipoTramite
-from datetime import date
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+from .models import Cita
 
-# Serializer simple para el catálogo "TipoTramite"
-class TipoTramiteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TipoTramite 
-        fields = ["id", "nombre", "descripcion", "is_activo", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-# Serializer para Disponibilidad del Agente
-class DisponibilidadAgenteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DisponibilidadAgente 
-        fields = [
-            "id", "agente", "dia_semana", "hora_inicio", "hora_fin",
-            "valido_desde", "valido_hasta", "is_activo",
-            "created_at", "updated_at",
-        ]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-    def validate(self, attrs):
-        hi = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
-        hf = attrs.get("hora_fin",    getattr(self.instance, "hora_fin", None))
-        if hi and hf and not (hf > hi):
-            raise serializers.ValidationError("hora_fin debe ser mayor que hora_inicio.")
-        return attrs
-
-#función utilitaria para detectar solapamientos de horarios
-def _overlaps(h1_start, h1_end, h2_start, h2_end) -> bool:
-    """
-    Regla clásica de solapamiento con intervalos [inicio, fin):
-    Se solapan si: (start1 < end2) AND (end1 > start2)
-    """
-    return (h1_start < h2_end) and (h1_end > h2_start)
+User = get_user_model()
 
 
-# Serializer principal para Cita
 class CitaSerializer(serializers.ModelSerializer):
-    tramite = serializers.PrimaryKeyRelatedField(queryset=TipoTramite.objects.filter(is_activo=True))
+    cliente_nombre = serializers.SerializerMethodField(read_only=True)
+    agente_nombre = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
-        model = Cita  
+        model = Cita
         fields = [
             "id",
-            "titulo", "descripcion",
-            "fecha_cita", "hora_inicio", "hora_fin",
+            "titulo",
+            "descripcion",
+            "fecha_cita",
+            "hora_inicio",
+            "hora_fin",
             "estado",
-            "cliente", "agente", "creado_por",
-            "tramite",
-            "created_at", "updated_at",
+            "cliente",
+            "agente",
+            "creado_por",
+            "cliente_nombre",
+            "agente_nombre",
+            "creado_en",
+            "actualizado_en",
         ]
-        # El cliente NO puede setear estos: los define el backend
-        read_only_fields = ["id", "agente", "creado_por", "created_at", "updated_at"]
+        read_only_fields = ["agente", "creado_por", "creado_en", "actualizado_en"]
 
-    # -------------------- VALIDACIONES DE NEGOCIO --------------------
-    def validate(self, attrs):
-        request = self.context.get("request")
-        if not request or not request.user or not request.user.is_authenticated:
-            raise serializers.ValidationError("Autenticación requerida.")
-        # En create: usa request.user; en update: valida contra el agente de la cita ya existente
-        agente = getattr(self.instance, "agente", request.user)
+    def get_cliente_nombre(self, obj):
+        return getattr(obj.cliente, "get_full_name", lambda: "")() or getattr(obj.cliente, "username", "")
 
-        fecha_cita = attrs.get("fecha_cita", getattr(self.instance, "fecha_cita", None))
-        hi = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
-        hf = attrs.get("hora_fin",    getattr(self.instance, "hora_fin", None))
-        cliente = attrs.get("cliente", getattr(self.instance, "cliente", None))
-        tramite = attrs.get("tramite", getattr(self.instance, "tramite", None))
+    def get_agente_nombre(self, obj):
+        return getattr(obj.agente, "get_full_name", lambda: "")() or getattr(obj.agente, "username", "")
 
-        if fecha_cita < date.today():
-         raise serializers.ValidationError("No se pueden crear citas en fechas pasadas.")
-
-        if not (fecha_cita and hi and hf and cliente and tramite):
-            raise serializers.ValidationError("fecha_cita, hora_inicio, hora_fin, cliente y tramite son requeridos.")
-
-        if not (hf > hi):
-            raise serializers.ValidationError("hora_fin debe ser mayor que hora_inicio.")
-
-        dow = fecha_cita.weekday()
-        # Buscamos disponibilidades del MISMO agente, ese día de semana, activas
-        disp_qs = DisponibilidadAgente.objects.filter(
-            agente=agente,
-            dia_semana=dow,
-            is_activo=True,
-        )
-        disp_qs = disp_qs.filter(
-            models.Q(valido_desde__isnull=True) | models.Q(valido_desde__lte=fecha_cita),
-            models.Q(valido_hasta__isnull=True) | models.Q(valido_hasta__gte=fecha_cita),
-        )
-
-        contiene = False
-        for d in disp_qs:
-            if (d.hora_inicio <= hi) and (hf <= d.hora_fin):
-                contiene = True
-                break
-        if not contiene:
-            raise serializers.ValidationError(
-                "La cita no cae dentro de una franja de disponibilidad activa del agente para ese día."
-            )
-        qs = Cita.objects.filter(
-            agente=agente,           
-            fecha_cita=fecha_cita,  
-        ).exclude(estado=Cita.ESTADO_CANCELADA)  
-
-        instance = getattr(self, "instance", None)
-        if instance and instance.pk:
-            qs = qs.exclude(pk=instance.pk)
-        for other in qs.only("hora_inicio", "hora_fin"):
-            if _overlaps(hi, hf, other.hora_inicio, other.hora_fin):
-                raise serializers.ValidationError("El horario se solapa con otra cita del agente en ese día.")
-
-        return attrs
-
+    # ✅ Se asignan automáticamente agente y creado_por desde request.user
     def create(self, validated_data):
-        """
-        Forzamos la regla: el agente que crea es el request.user.
-        """
-        user = self.context["request"].user 
-        validated_data["agente"] = user   
-        validated_data["creado_por"] = user 
+        user = self.context["request"].user
+        validated_data.setdefault("agente", user)
+        validated_data.setdefault("creado_por", user)
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
-        """
-        Evitar que se reasigne el agente/creado_por por API.
-        """
-        validated_data.pop("agente", None)     
-        validated_data.pop("creado_por", None) 
-        return super().update(instance, validated_data)
+    def validate(self, data):
+        # valores efectivos (soporta create y update parcial)
+        user = self.context.get("request").user if self.context.get("request") else None
+        agente = data.get("agente") or getattr(self.instance, "agente", None) or user
+        cliente = data.get("cliente") or getattr(self.instance, "cliente", None)
+        fecha = data.get("fecha_cita") or getattr(self.instance, "fecha_cita", None)
+        h_ini = data.get("hora_inicio") or getattr(self.instance, "hora_inicio", None)
+        h_fin = data.get("hora_fin") or getattr(self.instance, "hora_fin", None)
+
+        if h_ini and h_fin and h_ini >= h_fin:
+            raise serializers.ValidationError("La hora de inicio debe ser menor que la hora fin.")
+
+        # si faltan datos (en update parcial) salimos y dejamos que los required hagan su trabajo
+        if not all([agente, cliente, fecha, h_ini, h_fin]):
+            return data
+
+        # excluir canceladas y a sí misma
+        qs = Cita.objects.exclude(estado="CANCELADA")
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
+
+        # condición de solape: ini_nuevo < fin_existente && fin_nuevo > ini_existente
+        overlap = Q(fecha_cita=fecha, hora_inicio__lt=h_fin, hora_fin__gt=h_ini)
+
+        # evitar doble booking para el agente
+        if qs.filter(overlap, agente=agente).exists():
+            raise serializers.ValidationError(
+                {"hora_inicio": "El AGENTE tiene otra cita que se solapa en ese horario."}
+            )
+
+        # (opcional) evitar solape para el cliente
+        if qs.filter(overlap, cliente=cliente).exists():
+            raise serializers.ValidationError(
+                {"hora_inicio": "El CLIENTE tiene otra cita que se solapa en ese horario."}
+            )
+
+        return data
