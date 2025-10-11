@@ -11,10 +11,13 @@ from usuario.serializers import UsuarioSerializer
 class MensajeSerializer(serializers.ModelSerializer):
     chat = serializers.PrimaryKeyRelatedField(queryset=ChatModel.objects.all())
     usuario = UsuarioSerializer(read_only=True)  # <- cambio importante
+    usuario_id = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), write_only=True, source='usuario'
+    )
 
     class Meta:
         model = MensajeModel
-        fields = ["id", "chat", "usuario", "mensaje", "fecha_envio", "leido"]
+        fields = ["id", "chat", "usuario", "mensaje", "fecha_envio", "leido", "usuario_id"]
 
 
 # --------------------------
