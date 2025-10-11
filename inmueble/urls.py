@@ -1,3 +1,4 @@
+# inmueble/urls.py
 from django.urls import path
 from . import views
 
@@ -6,6 +7,10 @@ urlpatterns = [
     path('agente_registrar_inmueble', views.agente_registrar_inmueble, name='agente_registrar_inmueble'), # PROBADO
     path('solicitar_cambio_inmueble/<int:inmueble_id>', views.solicitar_cambio_inmueble, name='solicitar_cambio_inmueble'), 
     # path('publicar_anuncio/<int:inmueble_id>', views.publicar_anuncio, name='publicar_anuncio'),
+    path('publicar_inmueble/<int:inmueble_id>', views.publicar_inmueble, name='publicar_inmueble'),
+    # 🔹 NUEVO: listados del agente para las pestañas
+    path('mis-inmuebles', views.mis_inmuebles, name='mis_inmuebles'),
+    path('mis-inmuebles/resumen', views.resumen_mis_inmuebles, name='resumen_mis_inmuebles'),
     # --------------------------
     # TIPO INMUEBLE
     # --------------------------
@@ -24,7 +29,7 @@ urlpatterns = [
     path('aceptar_cambio_inmueble/<int:cambio_id>', views.aceptar_cambio_inmueble, name='aceptar_cambio_inmueble'),
     path('rechazar_cambio_inmueble/<int:cambio_id>', views.rechazar_cambio_inmueble, name='rechazar_cambio_inmueble'),
     path('editar_inmueble/<int:inmueble_id>', views.editar_inmueble, name='editar_inmueble'),
-    path('listar_inmuebles/', views.listar_inmuebles_por_estado, name='listar_inmuebles_por_estado'),
+    path('listar_inmuebles/', views.listar_inmuebles_por_estado, name='listar_inmuebles_por_estado'),   
 
 # GESTION DE ANUNCIOS
     path('listar_anuncios_disponibles',views.listar_anuncios_disponibles, name='listar_anuncios_disponibles'),
