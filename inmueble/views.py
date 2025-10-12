@@ -198,80 +198,99 @@ def agente_registrar_inmueble(request):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 # EL AGENTE ENVIA SOLICITUD AL ADMIN PARA HACER CAMBIOS
-
 @api_view(['POST'])
 @requiere_permiso("Cambio_inmueble", "crear")
 def solicitar_cambio_inmueble(request, inmueble_id):
+    """
+    El agente solicita una corrección sobre un inmueble rechazado.
+    Crea un registro de cambio y marca el inmueble nuevamente como pendiente.
+    """
     inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
-    agente = request.user  # usuario autenticado
-    # Validación: solo el agente asignado puede solicitar cambios
+    agente = request.user
+
+    # Solo el agente dueño puede solicitar cambios
     if inmueble.agente != agente:
         return Response({
             "status": 0,
             "error": 1,
             "message": "Solo el agente asignado puede solicitar cambios para este inmueble."
-        })
+        }, status=status.HTTP_403_FORBIDDEN)
 
-    # Crear registro de cambio con solo los campos enviados
+    # Solo se puede reenviar si fue rechazado
+    if inmueble.estado != "rechazado":
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Solo puedes reenviar inmuebles rechazados."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Crear registro de cambio con los campos corregidos
     cambio_data = request.data.copy()
     cambio_data['agente'] = agente.id
-    cambio_data['inmueble'] = inmueble.id    
+    cambio_data['inmueble'] = inmueble.id
 
     serializer = CambioInmuebleSerializer(data=cambio_data)
     if serializer.is_valid():
         serializer.save()
+
+        # Limpiar motivo de rechazo y poner el inmueble como pendiente
+        inmueble.motivo_rechazo = ""
+        inmueble.estado = "pendiente"
+        inmueble.save()
+
+        registrar_accion(
+            usuario=agente,
+            accion=f"Reenvió el inmueble ID {inmueble.id} para revisión (Cambio ID {serializer.instance.id})",
+            ip=request.META.get("REMOTE_ADDR")
+        )
+
         return Response({
             "status": 1,
             "error": 0,
-            "message": "Cambio solicitado correctamente. Esperando aprobación del admin.",
+            "message": "Cambio reenviado correctamente. El inmueble vuelve a revisión del administrador.",
             "values": {"cambio": serializer.data}
         })
-    
+
     return Response({
         "status": 0,
         "error": 1,
-        "message": "Error al solicitar cambio",
+        "message": "Error al reenviar la solicitud de cambio.",
         "values": serializer.errors
     })
+
 
 # ADMIN ACEPTA INMUEBLE DEL AGENTE
 @api_view(["PATCH"])
 @requiere_permiso("Inmueble", "actualizar")
 def rechazar_inmueble(request, inmueble_id):
     """
-    Permite que un administrador apruebe un inmueble pendiente.
-    URL: PATCH /api/inmuebles/aprobar/<inmueble_id>/
+    Permite al administrador rechazar un inmueble con un motivo de rechazo.
     """
-
     inmueble = get_object_or_404(InmuebleModel, pk=inmueble_id)
 
-    # Verificar si ya está aprobado
-    if inmueble.estado == "aprobado":
-        return Response({
-            "status": 2,
-            "error": 1,
-            "message": "El inmueble ya fue aprobado anteriormente."
-        })
+    # Obtener el motivo del body
+    motivo = request.data.get("motivo", "").strip()
 
-    # Cambiar estado a aprobado
+    # Cambiar estado y guardar motivo
     inmueble.estado = "rechazado"
+    inmueble.motivo_rechazo = motivo or "Sin motivo especificado"
     inmueble.save()
 
-    # Registrar en la bitácora
     registrar_accion(
         usuario=request.user,
-        accion=f"Rechazó el inmueble con ID: {inmueble.id}",
+        accion=f"Rechazó el inmueble ID {inmueble.id} (Motivo: {motivo})",
         ip=request.META.get("REMOTE_ADDR")
     )
 
     return Response({
         "status": 1,
         "error": 0,
-        "message": "INMUEBLE RECHAZADO CORRECTAMENTE",
+        "message": "Inmueble rechazado correctamente.",
         "values": {
             "id": inmueble.id,
             "titulo": inmueble.titulo,
-            "estado": inmueble.estado
+            "estado": inmueble.estado,
+            "motivo_rechazo": inmueble.motivo_rechazo
         }
     })
 
@@ -279,13 +298,10 @@ def rechazar_inmueble(request, inmueble_id):
 @requiere_permiso("Inmueble", "actualizar")
 def aceptar_inmueble(request, inmueble_id):
     """
-    Permite que un administrador apruebe un inmueble pendiente.
-    URL: PATCH /api/inmuebles/aprobar/<inmueble_id>/
+    Permite al administrador aprobar un inmueble pendiente.
     """
-
     inmueble = get_object_or_404(InmuebleModel, pk=inmueble_id)
 
-    # Verificar si ya está aprobado
     if inmueble.estado == "aprobado":
         return Response({
             "status": 2,
@@ -293,27 +309,28 @@ def aceptar_inmueble(request, inmueble_id):
             "message": "El inmueble ya fue aprobado anteriormente."
         })
 
-    # Cambiar estado a aprobado
     inmueble.estado = "aprobado"
+    inmueble.motivo_rechazo = ""  # 👈 limpiar motivo al aprobar
     inmueble.save()
 
-    # Registrar en la bitácora
     registrar_accion(
         usuario=request.user,
-        accion=f"Aprobó el inmueble con ID: {inmueble.id}",
+        accion=f"Aprobó el inmueble ID {inmueble.id}",
         ip=request.META.get("REMOTE_ADDR")
     )
 
     return Response({
         "status": 1,
         "error": 0,
-        "message": "INMUEBLE APROBADO CORRECTAMENTE",
+        "message": "Inmueble aprobado correctamente.",
         "values": {
             "id": inmueble.id,
             "titulo": inmueble.titulo,
             "estado": inmueble.estado
         }
     })
+
+
 
 # EL ADMIN APRUEBA SOLICITUD DE CAMBIO EN LOS DATOS DE LA NIMOBILIARIA
 
@@ -344,6 +361,9 @@ def aceptar_cambio_inmueble(request, cambio_id):
             setattr(inmueble, campo, valor)
 
     inmueble.save()
+    inmueble.motivo_rechazo = ""
+    inmueble.save()
+
 
     # Actualizar estado del cambio
     cambio.estado = "aprobado"
@@ -576,7 +596,7 @@ def listar_inmuebles(request):
     """
     qs = (
         InmuebleModel.objects
-        .filter(estado="aprobado", is_active=True, anuncio__is_active=True)
+        .filter(estado="aprobado", is_active=True, anuncio__is_active=True,anuncio__estado='disponible')
         .select_related("tipo_inmueble", "anuncio")
         .prefetch_related("fotos")
         .order_by("-id")
@@ -616,7 +636,7 @@ def listar_inmuebles(request):
 @api_view(['GET'])
 def obtener_inmueble(request, pk):
     obj = get_object_or_404(
-        InmuebleModel.objects.prefetch_related('fotos'),
+        InmuebleModel.objects.select_related('anuncio').prefetch_related('fotos'),  # 👈 AÑADIDO
         pk=pk
     )
     data = InmuebleSerializer(obj, context={'request': request}).data
@@ -635,7 +655,11 @@ def listar_inmuebles_por_estado(request):
     try:
         estado = request.GET.get('estado', 'pendiente').lower()
 
-        inmuebles = InmuebleModel.objects.filter(is_active=True)
+        inmuebles = (
+        InmuebleModel.objects
+        .filter(is_active=True)
+        .select_related('anuncio')                    # 👈 AÑADIDO
+         )
 
         if estado != 'todos':
             inmuebles = inmuebles.filter(estado=estado)
@@ -654,6 +678,25 @@ def listar_inmuebles_por_estado(request):
             "error": 1,
             "message": f"Error interno: {str(e)}"
         }, status=500)
+@api_view(['GET'])
+def estado_anuncio_por_inmueble(request):
+    inmueble_id = request.GET.get("inmueble")
+    if not inmueble_id:
+        return Response({"status": 0, "error": 1, "message": "Falta parámetro 'inmueble'."}, status=400)
+
+    try:
+        an = AnuncioModel.objects.select_related('inmueble').get(inmueble_id=inmueble_id)
+    except AnuncioModel.DoesNotExist:
+        return Response({"status": 1, "error": 0, "message": "SIN ANUNCIO", "values": {"tiene_anuncio": False, "anuncio": None, "inmueble": int(inmueble_id)}})
+
+    return Response({
+        "status": 1, "error": 0, "message": "ESTADO DE ANUNCIO",
+        "values": {"tiene_anuncio": True, "anuncio": {
+            "id": an.id, "inmueble": an.inmueble_id,
+            "estado": an.estado, "is_active": an.is_active,
+            "fecha_publicacion": an.fecha_publicacion,
+        }}
+    })
 
 # =========================================================
 # 🟢 PUBLICAR INMUEBLE (solo agente con inmueble aprobado)
@@ -718,7 +761,7 @@ def publicar_inmueble(request, inmueble_id):
             "estado_anuncio": anuncio.estado,
             "publicado": anuncio.is_active  # 🟩 agregado para claridad
         }
-    })
+    })  
 
 
 @api_view(['GET'])
@@ -733,7 +776,7 @@ def mis_inmuebles(request):
     qs = (
         InmuebleModel.objects
         .filter(agente=request.user, is_active=True)
-        .select_related('tipo_inmueble')
+        .select_related('tipo_inmueble', 'anuncio') 
         .prefetch_related('fotos')
         .order_by('-id')
     )
@@ -837,7 +880,147 @@ def resumen_mis_inmuebles(request):
         "message": "RESUMEN MIS INMUEBLES",
         "values": agg
     })
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def historial_publicaciones(request):
+    inmuebles = InmuebleModel.objects.filter(agente=request.user)
+    data = []
+    for i in inmuebles:
+        anuncio = getattr(i, "anuncio", None)
+        data.append({
+            "id": i.id,
+            "titulo": i.titulo,
+            "estado_inmueble": i.estado,
+            "estado_publicacion": anuncio.estado if anuncio else None,
+            "publicado": bool(anuncio and anuncio.is_active),
+            "fecha_publicacion": anuncio.fecha_publicacion if anuncio else None,
+            "precio": i.precio,
+            "ciudad": i.ciudad,
+        })
+    return Response({
+        "status": 1, "error": 0,
+        "message": "HISTORIAL DE PUBLICACIONES",
+        "values": data
+    })
 
+# ✅ Reenviar inmueble rechazado (Agente corrige y vuelve a enviar)
+@api_view(["PATCH"])
+@requiere_permiso("Inmueble", "actualizar")
+def corregir_y_reenviar_inmueble(request, inmueble_id):
+    """
+    Permite al agente reenviar un inmueble rechazado después de corregirlo.
+    Cambia el estado a 'pendiente' y limpia el motivo de rechazo.
+    """
+    inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+
+    # Solo el agente dueño puede reenviar su inmueble
+    if inmueble.agente != request.user:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "No puedes reenviar un inmueble que no te pertenece."
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    if inmueble.estado != "rechazado":
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Solo se pueden reenviar inmuebles rechazados."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    inmueble.estado = "pendiente"
+    inmueble.motivo_rechazo = ""
+    inmueble.save()
+
+    registrar_accion(
+        usuario=request.user,
+        accion=f"Corrigió y reenvió inmueble ID {inmueble.id}",
+        ip=request.META.get("REMOTE_ADDR")
+    )
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "Inmueble reenviado para revisión del administrador.",
+        "values": {
+            "id": inmueble.id,
+            "estado": inmueble.estado
+        }
+    })
+@api_view(["GET"])
+@requiere_permiso("Inmueble", "leer")
+def listar_inmuebles_agente(request):
+    """
+    Retorna todos los inmuebles registrados por el agente autenticado.
+    Incluye los rechazados (con motivo), aprobados y pendientes.
+    Protegido por permisos del componente 'Inmueble' → acción 'leer'.
+    """
+    agente = request.user
+
+    # Filtra solo los inmuebles del agente autenticado
+    inmuebles = InmuebleModel.objects.filter(agente=agente).order_by("-id")
+
+    # Serializa los resultados
+    serializer = InmuebleSerializer(inmuebles, many=True)
+
+    # Devuelve la respuesta estándar
+    return Response({
+        "status": 1,
+        "error": 0,
+        "values": serializer.data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['PUT'])
+@requiere_permiso("Inmueble", "actualizar")
+def solicitar_correccion_inmueble(request, inmueble_id):
+    """
+    Permite al agente reenviar un inmueble rechazado con los datos corregidos.
+    Actualiza el inmueble, lo marca como 'pendiente' y limpia el motivo de rechazo.
+    """
+    inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+    agente = request.user
+
+    # Solo el agente dueño puede reenviar su inmueble
+    if inmueble.agente != agente:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "No tienes permiso para modificar este inmueble."
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    # Solo se puede reenviar si estaba rechazado
+    if inmueble.estado != "rechazado":
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Solo los inmuebles rechazados pueden ser reenviados."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Actualizar los datos corregidos
+    serializer = InmuebleSerializer(inmueble, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save(estado="pendiente", motivo_rechazo="")
+
+        # Registrar acción (opcional)
+        registrar_accion(
+            usuario=request.user,
+            accion=f"Corrigió y reenviò inmueble ID {inmueble.id}",
+            ip=request.META.get("REMOTE_ADDR")
+        )
+
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": "Inmueble corregido y reenviado correctamente.",
+            "values": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    return Response({
+        "status": 0,
+        "error": 1,
+        "message": "Datos inválidos.",
+        "details": serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 # =========================================================
 # 🟢 CREAR / ACTUALIZAR ANUNCIOS con @requiere_permiso
 # =========================================================

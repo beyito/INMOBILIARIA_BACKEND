@@ -11,6 +11,11 @@ urlpatterns = [
     # 🔹 NUEVO: listados del agente para las pestañas
     path('mis-inmuebles', views.mis_inmuebles, name='mis_inmuebles'),
     path('mis-inmuebles/resumen', views.resumen_mis_inmuebles, name='resumen_mis_inmuebles'),
+    path('listar_inmuebles_agente/', views.listar_inmuebles_agente, name='listar_inmuebles_agente'),
+    path('historial-publicaciones', views.historial_publicaciones, name='historial_publicaciones'),
+    # ✅ Rutas de corrección y reenvío
+    path('corregir_reenviar_inmueble/<int:inmueble_id>/', views.corregir_y_reenviar_inmueble, name='corregir_y_reenviar_inmueble'),
+    path('solicitar_correccion_inmueble/<int:inmueble_id>/', views.solicitar_correccion_inmueble, name='solicitar_correccion_inmueble'),
     # --------------------------
     # TIPO INMUEBLE
     # --------------------------
@@ -37,8 +42,9 @@ urlpatterns = [
     path('anuncio/crear/', views.anuncio_crear, name='anuncio_crear'),
     path('anuncio/<int:anuncio_id>/actualizar/', views.anuncio_actualizar, name='anuncio_actualizar'),
     path('anuncio/<int:anuncio_id>/estado/', views.estado_anuncio_por_id, name='estado_anuncio_por_id'),
-    path('anuncio/<int:inmueble_id>/estado_anuncio_id_inmueble/', views.estado_anuncio_por_id_inmueble, name='estado_anuncio_id_inmueble'),
-
+    path('anuncio/estado', views.estado_anuncio_por_inmueble, name='estado_anuncio_por_inmueble'),
     path('anuncio/<int:inmueble_id>/', views.obtener_anuncio_por_inmueble, name='obtener_anuncio_por_inmueble'),
     path('todos-mis-inmuebles', views.todos_mis_inmuebles, name='todos_mis_inmuebles'),
+
+
 ]
