@@ -596,7 +596,7 @@ def listar_inmuebles(request):
     """
     qs = (
         InmuebleModel.objects
-        .filter(estado="aprobado", is_active=True, anuncio__is_active=True)
+        .filter(estado="aprobado", is_active=True, anuncio__is_active=True,anuncio__estado='disponible')
         .select_related("tipo_inmueble", "anuncio")
         .prefetch_related("fotos")
         .order_by("-id")
@@ -636,7 +636,7 @@ def listar_inmuebles(request):
 @api_view(['GET'])
 def obtener_inmueble(request, pk):
     obj = get_object_or_404(
-        InmuebleModel.objects.prefetch_related('fotos'),
+        InmuebleModel.objects.select_related('anuncio').prefetch_related('fotos'),  # 👈 AÑADIDO
         pk=pk
     )
     data = InmuebleSerializer(obj, context={'request': request}).data
@@ -655,7 +655,11 @@ def listar_inmuebles_por_estado(request):
     try:
         estado = request.GET.get('estado', 'pendiente').lower()
 
-        inmuebles = InmuebleModel.objects.filter(is_active=True)
+        inmuebles = (
+        InmuebleModel.objects
+        .filter(is_active=True)
+        .select_related('anuncio')                    # 👈 AÑADIDO
+         )
 
         if estado != 'todos':
             inmuebles = inmuebles.filter(estado=estado)
@@ -675,6 +679,25 @@ def listar_inmuebles_por_estado(request):
             "error": 1,
             "message": f"Error interno: {str(e)}"
         }, status=500)
+@api_view(['GET'])
+def estado_anuncio_por_inmueble(request):
+    inmueble_id = request.GET.get("inmueble")
+    if not inmueble_id:
+        return Response({"status": 0, "error": 1, "message": "Falta parámetro 'inmueble'."}, status=400)
+
+    try:
+        an = AnuncioModel.objects.select_related('inmueble').get(inmueble_id=inmueble_id)
+    except AnuncioModel.DoesNotExist:
+        return Response({"status": 1, "error": 0, "message": "SIN ANUNCIO", "values": {"tiene_anuncio": False, "anuncio": None, "inmueble": int(inmueble_id)}})
+
+    return Response({
+        "status": 1, "error": 0, "message": "ESTADO DE ANUNCIO",
+        "values": {"tiene_anuncio": True, "anuncio": {
+            "id": an.id, "inmueble": an.inmueble_id,
+            "estado": an.estado, "is_active": an.is_active,
+            "fecha_publicacion": an.fecha_publicacion,
+        }}
+    })
 
 # =========================================================
 # 🟢 PUBLICAR INMUEBLE (solo agente con inmueble aprobado)
@@ -739,7 +762,7 @@ def publicar_inmueble(request, inmueble_id):
             "estado_anuncio": anuncio.estado,
             "publicado": anuncio.is_active  # 🟩 agregado para claridad
         }
-    })
+    })  
 
 
 @api_view(['GET'])
@@ -755,7 +778,7 @@ def mis_inmuebles(request):
     qs = (
         InmuebleModel.objects
         .filter(agente=request.user, is_active=True)
-        .select_related('tipo_inmueble')
+        .select_related('tipo_inmueble', 'anuncio') 
         .prefetch_related('fotos')
         .order_by('-id')
     )

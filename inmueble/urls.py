@@ -42,6 +42,7 @@ urlpatterns = [
     path('anuncio/crear/', views.anuncio_crear, name='anuncio_crear'),
     path('anuncio/<int:anuncio_id>/actualizar/', views.anuncio_actualizar, name='anuncio_actualizar'),
     path('anuncio/<int:anuncio_id>/estado/', views.estado_anuncio_por_id, name='estado_anuncio_por_id'),
+    path('anuncio/estado', views.estado_anuncio_por_inmueble, name='estado_anuncio_por_inmueble'),
 
 
 
