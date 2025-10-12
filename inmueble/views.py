@@ -804,3 +804,131 @@ def resumen_mis_inmuebles(request):
         "values": agg
     })
 
+# =========================================================
+# 🟢 CREAR / ACTUALIZAR ANUNCIOS con @requiere_permiso
+# =========================================================
+
+
+@api_view(['POST'])
+@requiere_permiso("Anuncio", "crear")
+def anuncio_crear(request):
+    """
+    Crea (o actualiza si ya existe) el anuncio del inmueble con un estado comercial:
+    'vendido' | 'alquilado' | 'anticretico'
+    Body:
+    {
+      "inmueble": <id>,
+      "estado": "alquilado",
+      "is_active": true
+    }
+    """
+    VALIDOS = {"vendido", "alquilado", "anticretico","disponible"}
+
+    inmueble_id = request.data.get("inmueble")
+    estado = str(request.data.get("estado", "")).lower()
+    is_active = bool(request.data.get("is_active", True))
+
+    if not inmueble_id:
+        return Response({
+            "status": 0, "error": 1,
+            "message": "Debe enviar 'inmueble' (id).",
+            "values": {"inmueble": ["Este campo es requerido."]}
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if estado not in VALIDOS:
+        return Response({
+            "status": 0, "error": 1,
+            "message": "Estado inválido.",
+            "values": {"estado": [f"Use uno de: {list(VALIDOS)}"]}
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+
+    anuncio, created = AnuncioModel.objects.update_or_create(
+        inmueble=inmueble,
+        defaults={"estado": estado, "is_active": is_active},
+    )
+    if estado == "disponible":
+        anuncio.is_active = True
+
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "Anuncio creado correctamente" if created else "Anuncio actualizado correctamente",
+        "values": {
+            "id": anuncio.id,
+            "inmueble": inmueble.id,
+            "estado": anuncio.estado,
+            "is_active": anuncio.is_active
+        }
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@requiere_permiso("Anuncio", "actualizar")
+def anuncio_actualizar(request, anuncio_id):
+    """
+    Actualiza 'estado' y/o 'is_active' de un anuncio existente.
+    Body (cualquiera de ellos):
+    { "estado": "vendido" }  |  { "is_active": false }  |  ambos
+    """
+    VALIDOS = {"vendido", "alquilado", "anticretico","disponible"}
+
+    anuncio = get_object_or_404(AnuncioModel, id=anuncio_id)
+
+    estado = request.data.get("estado")
+    if estado is not None:
+        estado = str(estado).lower()
+        if estado not in VALIDOS:
+            return Response({
+                "status": 0, "error": 1,
+                "message": "Estado inválido.",
+                "values": {"estado": [f"Use uno de: {list(VALIDOS)}"]}
+            }, status=status.HTTP_400_BAD_REQUEST)
+        anuncio.estado = estado
+
+    if "is_active" in request.data:
+        anuncio.is_active = bool(request.data.get("is_active"))
+    if estado == "disponible":
+        anuncio.is_active = True
+
+
+    anuncio.save()
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "Anuncio actualizado correctamente",
+        "values": {
+            "id": anuncio.id,
+            "inmueble": anuncio.inmueble_id,
+            "estado": anuncio.estado,
+            "is_active": anuncio.is_active
+        }
+    })
+# inmueble/views.py
+@api_view(['GET'])
+#@requiere_permiso("Anuncio", "leer")
+def estado_anuncio_por_id(request, anuncio_id):
+    """
+    GET /inmueble/anuncio/<anuncio_id>/estado/
+    Devuelve el estado del anuncio (por ID de anuncio).
+    """
+    anuncio = get_object_or_404(AnuncioModel.objects.select_related('inmueble'), id=anuncio_id)
+
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "ESTADO DE ANUNCIO",
+        "values": {
+            "tiene_anuncio": True,
+            "anuncio": {
+                "id": anuncio.id,
+                "inmueble": anuncio.inmueble_id,
+                "estado": anuncio.estado,
+                "is_active": anuncio.is_active,
+                "fecha_publicacion": anuncio.fecha_publicacion,
+            }
+        }
+    })

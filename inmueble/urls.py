@@ -31,7 +31,13 @@ urlpatterns = [
     path('editar_inmueble/<int:inmueble_id>', views.editar_inmueble, name='editar_inmueble'),
     path('listar_inmuebles/', views.listar_inmuebles_por_estado, name='listar_inmuebles_por_estado'),   
 
-# GESTION DE ANUNCIOS
+    # GESTION DE ANUNCIOS
     path('listar_anuncios_disponibles',views.listar_anuncios_disponibles, name='listar_anuncios_disponibles'),
+        # GESTIÓN DE ANUNCIOS (para KPI/visualización)
+    path('anuncio/crear/', views.anuncio_crear, name='anuncio_crear'),
+    path('anuncio/<int:anuncio_id>/actualizar/', views.anuncio_actualizar, name='anuncio_actualizar'),
+    path('anuncio/<int:anuncio_id>/estado/', views.estado_anuncio_por_id, name='estado_anuncio_por_id'),
+
+
 
 ]
