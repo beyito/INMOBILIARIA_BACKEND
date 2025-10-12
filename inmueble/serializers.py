@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import InmuebleModel, TipoInmuebleModel, CambioInmuebleModel, FotoModel
+from .models import InmuebleModel, TipoInmuebleModel, CambioInmuebleModel, FotoModel, AnuncioModel
 from usuario.models import Usuario
 from usuario.serializers import UsuarioSerializer
 class TipoInmuebleSerializer(serializers.ModelSerializer):
@@ -52,3 +52,39 @@ class CambioInmuebleSerializer(serializers.ModelSerializer):
             "fecha_solicitud",
             "fecha_revision"
         ]
+
+# serializers.py
+class AnuncioSerializer(serializers.ModelSerializer):
+    inmueble_info = serializers.SerializerMethodField(read_only=True)
+    agente_info = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AnuncioModel
+        fields = [
+            'id',
+            'inmueble',
+            'inmueble_info',
+            'agente_info',
+            'fecha_publicacion', 
+            'estado',
+            'prioridad', 
+            'is_active'
+        ]
+        read_only_fields = ['fecha_publicacion']
+
+    def get_inmueble_info(self, obj):
+        return {
+            'id': obj.inmueble.id,
+            'titulo': obj.inmueble.titulo,
+            'precio': obj.inmueble.precio,
+            'tipo_operacion': obj.inmueble.tipo_operacion,
+            'ciudad': obj.inmueble.ciudad,
+            'zona': obj.inmueble.zona,
+            'fotos': [foto.url for foto in obj.inmueble.fotos.filter(is_active=True)]
+        }
+
+    def get_agente_info(self, obj):
+        return {
+            'id': obj.inmueble.agente.id,
+            'nombre': f"{obj.inmueble.agente.nombre}",
+        }

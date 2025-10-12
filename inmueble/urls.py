@@ -29,9 +29,13 @@ urlpatterns = [
     path('aceptar_cambio_inmueble/<int:cambio_id>', views.aceptar_cambio_inmueble, name='aceptar_cambio_inmueble'),
     path('rechazar_cambio_inmueble/<int:cambio_id>', views.rechazar_cambio_inmueble, name='rechazar_cambio_inmueble'),
     path('editar_inmueble/<int:inmueble_id>', views.editar_inmueble, name='editar_inmueble'),
-    path('listar_inmuebles/', views.listar_inmuebles_por_estado, name='listar_inmuebles_por_estado'),   
+    path('listar_inmuebles/', views.listar_inmuebles_por_estado, name='listar_inmuebles_por_estado'),  
+# GESTION DE ANUNCIOS     
+    path('anuncios/', views.admin_listar_anuncios, name='admin_listar_anuncios'),
+    path('anuncios/crear/<int:inmueble_id>', views.admin_crear_anuncio, name='admin_crear_anuncio'),
+    path('anuncios/<int:anuncio_id>', views.admin_actualizar_anuncio, name='admin_actualizar_anuncio'),
+    path('anuncios/no_publicados', views.admin_inmuebles_sin_anuncio, name='admin_inmuebles_sin_anuncio'),
 
-# GESTION DE ANUNCIOS
     path('listar_anuncios_disponibles',views.listar_anuncios_disponibles, name='listar_anuncios_disponibles'),
 
 ]

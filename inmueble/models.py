@@ -99,17 +99,30 @@ class AnuncioModel(models.Model):
             ('alquilado', 'Alquilado'),
             ('vendido', 'Vendido'),
             ('anticretico', 'Anticretico'),
-
+            ('inactivo', 'Inactivo'), 
         ],
         default='pendiente'
     )
+    prioridad = models.CharField(
+        max_length=20,
+        choices=[
+            ('normal', 'Normal'),
+            ('destacado', 'Destacado'),
+            ('premium', 'Premium'),
+        ],
+        default='normal'
+    )
     is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"Anuncio de {self.inmueble.titulo or 'Inmueble sin título'} - {self.estado}"
 
     class Meta:
         db_table = "anuncio"
+        ordering = ['-prioridad', '-fecha_publicacion']  # 🆕 Orden automático
+    
+    def save(self, *args, **kwargs):
+        #  si is_active es False, estado = inactivo
+        if not self.is_active and self.estado != 'inactivo':
+            self.estado = 'inactivo'
+        super().save(*args, **kwargs)    
 
 class FotoModel(models.Model):
     inmueble = models.ForeignKey(
