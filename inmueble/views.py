@@ -214,7 +214,6 @@ def solicitar_cambio_inmueble(request, inmueble_id):
 
     # Crear registro de cambio con solo los campos enviados
     cambio_data = request.data.copy()
-    print(agente.id)
     cambio_data['agente'] = agente.id
     cambio_data['inmueble'] = inmueble.id    
 
@@ -650,7 +649,6 @@ def listar_inmuebles_por_estado(request):
             "values": {"inmuebles": serializer.data}
         })
     except Exception as e:
-        print(f"⚠ Error en listar_inmuebles_por_estado: {e}")
         return Response({
             "status": 0,
             "error": 1,
@@ -732,7 +730,6 @@ def mis_inmuebles(request):
     - 'publicados'  => aprobados CON anuncio activo/disponible
     """
     estado = (request.GET.get('estado') or 'todos').lower()
-
     qs = (
         InmuebleModel.objects
         .filter(agente=request.user, is_active=True)
@@ -762,6 +759,43 @@ def mis_inmuebles(request):
     })
 
 
+
+@api_view(['GET'])
+@requiere_permiso("Inmueble", "leer")
+def todos_mis_inmuebles(request):
+    """
+    ?estado = pendiente | aprobado | rechazado | publicados | todos
+    - 'aprobado'    => aprobados SIN anuncio activo/disponible
+    - 'publicados'  => aprobados CON anuncio activo/disponible
+    """
+    estado = (request.GET.get('estado') or 'todos').lower()
+    qs = (
+        InmuebleModel.objects
+        .filter(agente=request.user, is_active=True)
+        .select_related('tipo_inmueble')
+        .prefetch_related('fotos')
+        .order_by('-id')
+    )
+
+    if estado == 'pendiente':
+        qs = qs.filter(estado='pendiente')
+    elif estado == 'rechazado':
+        qs = qs.filter(estado='rechazado')
+    elif estado == 'aprobado':
+        # 👇 aprobados, pero NO publicados
+        qs = qs.filter(estado='aprobado')\
+               .exclude( anuncio__estado='disponible')
+    elif estado == 'publicados':
+        # 👇 aprobados y publicados
+        qs = qs.filter(estado='aprobado',anuncio__isnull=False)
+    # else: 'todos' => sin filtro extra
+
+    serializer = InmuebleSerializer(qs, many=True)
+    return Response({
+        "status": 1, "error": 0,
+        "message": f"MIS INMUEBLES ({estado.upper()})",
+        "values": {"inmuebles": serializer.data}
+    })
 
 
 # @api_view(['GET'])
@@ -827,23 +861,19 @@ def anuncio_crear(request):
     inmueble_id = request.data.get("inmueble")
     estado = str(request.data.get("estado", "")).lower()
     is_active = bool(request.data.get("is_active", True))
-
     if not inmueble_id:
         return Response({
             "status": 0, "error": 1,
             "message": "Debe enviar 'inmueble' (id).",
             "values": {"inmueble": ["Este campo es requerido."]}
         }, status=status.HTTP_400_BAD_REQUEST)
-
     if estado not in VALIDOS:
         return Response({
             "status": 0, "error": 1,
             "message": "Estado inválido.",
             "values": {"estado": [f"Use uno de: {list(VALIDOS)}"]}
         }, status=status.HTTP_400_BAD_REQUEST)
-
     inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
-
     anuncio, created = AnuncioModel.objects.update_or_create(
         inmueble=inmueble,
         defaults={"estado": estado, "is_active": is_active},
@@ -851,7 +881,7 @@ def anuncio_crear(request):
     if estado == "disponible":
         anuncio.is_active = True
 
-
+    anuncio.save()
     return Response({
         "status": 1,
         "error": 0,
@@ -932,3 +962,106 @@ def estado_anuncio_por_id(request, anuncio_id):
             }
         }
     })
+
+
+@api_view(['GET'])
+@requiere_permiso("Anuncio", "leer")
+def estado_anuncio_por_id_inmueble(request, inmueble_id):
+    """
+    GET /inmueble/<inmueble_id>/anuncio/estado/
+    Devuelve el estado del anuncio (por ID de inmueble).
+    """
+    try:
+        inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+        anuncio = AnuncioModel.objects.filter(inmueble=inmueble).first()
+
+        if anuncio:
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "ESTADO DE ANUNCIO",
+                "values": {
+                    "tiene_anuncio": True,
+                    "anuncio": {
+                        "id": anuncio.id,
+                        "inmueble": anuncio.inmueble_id,
+                        "estado": anuncio.estado,
+                        "is_active": anuncio.is_active,
+                        "fecha_publicacion": anuncio.fecha_publicacion,
+                    }
+                }
+            })
+        else:
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "INMUEBLE SIN ANUNCIO",
+                "values": {
+                    "tiene_anuncio": False
+                }
+            })
+
+    except InmuebleModel.DoesNotExist:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Inmueble no encontrado"
+        }, status=404)
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al obtener el estado del anuncio: {str(e)}"
+        }, status=500)
+
+
+
+@api_view(['GET'])
+@requiere_permiso("Anuncio", "leer")  # O el permiso que uses
+def obtener_anuncio_por_inmueble(request, inmueble_id):
+    """
+    Obtiene el anuncio asociado a un inmueble específico.
+    GET /inmueble/{inmueble_id}/anuncio/
+    """
+    try:
+        # Verificar que el inmueble existe y pertenece al usuario
+        inmueble = get_object_or_404(InmuebleModel, id=inmueble_id)
+    
+        # Buscar el anuncio asociado al inmueble
+        anuncio = AnuncioModel.objects.filter(inmueble=inmueble).first()
+        
+        if anuncio:
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "Anuncio encontrado",
+                "values": {
+                    "id": anuncio.id,
+                    "inmueble": anuncio.inmueble_id,
+                    "estado": anuncio.estado,
+                    "is_active": anuncio.is_active,
+                    "fecha_publicacion": anuncio.fecha_publicacion
+                }
+            })
+        else:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": "No se encontró anuncio para este inmueble",
+                "values": None
+            })
+            
+    except InmuebleModel.DoesNotExist:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Inmueble no encontrado",
+            "values": None
+        })
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error del servidor: {str(e)}",
+            "values": None
+        })

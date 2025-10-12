@@ -37,7 +37,8 @@ urlpatterns = [
     path('anuncio/crear/', views.anuncio_crear, name='anuncio_crear'),
     path('anuncio/<int:anuncio_id>/actualizar/', views.anuncio_actualizar, name='anuncio_actualizar'),
     path('anuncio/<int:anuncio_id>/estado/', views.estado_anuncio_por_id, name='estado_anuncio_por_id'),
+    path('anuncio/<int:inmueble_id>/estado_anuncio_id_inmueble/', views.estado_anuncio_por_id_inmueble, name='estado_anuncio_id_inmueble'),
 
-
-
+    path('anuncio/<int:inmueble_id>/', views.obtener_anuncio_por_inmueble, name='obtener_anuncio_por_inmueble'),
+    path('todos-mis-inmuebles', views.todos_mis_inmuebles, name='todos_mis_inmuebles'),
 ]
