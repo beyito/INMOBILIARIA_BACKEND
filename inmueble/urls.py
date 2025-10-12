@@ -11,6 +11,11 @@ urlpatterns = [
     # 🔹 NUEVO: listados del agente para las pestañas
     path('mis-inmuebles', views.mis_inmuebles, name='mis_inmuebles'),
     path('mis-inmuebles/resumen', views.resumen_mis_inmuebles, name='resumen_mis_inmuebles'),
+    path('listar_inmuebles_agente/', views.listar_inmuebles_agente, name='listar_inmuebles_agente'),
+    path('historial-publicaciones', views.historial_publicaciones, name='historial_publicaciones'),
+    # ✅ Rutas de corrección y reenvío
+    path('corregir_reenviar_inmueble/<int:inmueble_id>/', views.corregir_y_reenviar_inmueble, name='corregir_y_reenviar_inmueble'),
+    path('solicitar_correccion_inmueble/<int:inmueble_id>/', views.solicitar_correccion_inmueble, name='solicitar_correccion_inmueble'),
     # --------------------------
     # TIPO INMUEBLE
     # --------------------------

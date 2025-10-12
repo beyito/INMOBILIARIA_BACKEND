@@ -40,6 +40,7 @@ class InmuebleModel(models.Model):
         ('aprobado', 'Aprobado'),
         ('rechazado', 'Rechazado'),
     ], default='pendiente', null=True, blank=True)
+    motivo_rechazo = models.TextField(blank=True, null=True, default="")
     latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     is_active = models.BooleanField(default=True)
