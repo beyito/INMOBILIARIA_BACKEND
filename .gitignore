@@ -80,5 +80,6 @@ htmlcov/
 __pycache__/
 *.py[cod]
 *.cpython-*.pyc
-
 usuario/management/
+secrets/
+inmobiliaria/settings.py

@@ -1,0 +1,42 @@
+PRIMERA: (De las Partes).- Intervienen en la celebración del presente Contrato:
+
+1.1. {empresa_representante} mayor de edad, hábil por ley, de nacionalidad boliviano, identificado con Cédula de Identidad No. {empresa_ci} domiciliado en {empresa_domicilio}, mayor de edad y hábil por ley, representante autorizado de la oficina {empresa_nombre} (en adelante "{empresa_nombre}")
+
+1.2. {cliente_nombre} identificado con Cédula de Identidad No. {cliente_ci}, boliviano(a), {cliente_estado_civil}, {cliente_profesion}, con domicilio {cliente_domicilio}, mayor de edad y hábil por Ley (en adelante el "CLIENTE")
+
+1.3. {agente_nombre} identificado con Cédula de Identidad No. {agente_ci}, boliviano(a), {agente_estado_civil} con domicilio en {agente_domicilio}, mayor de edad y hábil por Ley (en adelante el "AGENTE ASOCIADO").
+
+De igual forma, tanto {empresa_nombre}, el CLIENTE y el AGENTE, podrán denominarse en adelante, indistintamente como las "Partes" de manera conjunta o la "Parte" de manera individual.
+
+SEGUNDA: (De los antecedentes y las Declaraciones).- {empresa_nombre}, es una empresa dedicada a la prestación de servicios de intermediación inmobiliaria. {empresa_nombre} es franquiciada de la marca de servicios inmobiliarios RE/MAX y tiene licencia de uso de marca para operar. A raíz de ello, {empresa_nombre} maneja una cartera de clientes e inversores interesados en invertir en el sector inmobiliario en Bolivia, por lo que se dedica a ser intermediario en las operaciones inmobiliarios para las que se lo contrata.
+
+EL CLIENTE declara ser propietario y tener plena capacidad de disposición de un INMUEBLE de una superficie de {inmueble_superficie}, ubicado en {inmueble_direccion} distrito N° {inmueble_distrito}, Mza. N° {inmueble_manzana}, Lote N° {inmueble_lote}, Zona {inmueble_zona}, inscrito en los registros de Derechos Reales, bajo Matrícula Computarizada No. {inmueble_matricula}, (en adelante, el "INMUEBLE").
+
+TERCERA: (Del Objeto, Precio y los Honorarios).- Por el presente documento el CLIENTE contrata los servicios de {empresa_nombre} a través de su AGENTE ASOCIADO para que realice todas las gestiones comerciales para lograr la venta del INMUEBLE, de acuerdo al siguiente detalle:
+3.1 Precio del INMUEBLE: SUS. {precio_inmueble}.
+3.2 La comisión pactada a raíz de la comercialización del bien INMUEBLE y pagadera a favor de {empresa_nombre} y consecuentemente a favor del AGENTE ASOCIADO, es del {comision}% del valor final del cierre de la transacción.
+
+CUARTA: (Del Pago).- Los honorarios establecidos en la cláusula 3.2 deberán ser pagados de siguiente manera:
+4.1 Paralelamente a la firma del documento de compromiso de compra-venta del INMUEBLE y recepción del CLIENTE del dinero de la venta.
+4.2 En caso que la venta se realice mediante financiamiento, los honorarios serán pagados inmediatamente el CLIENTE vendedor reciba el equivalente al 20% sobre el valor final del cierre de la transacción.
+Dichos honorarios deberán ser pagados únicamente en las oficinas de {empresa_nombre} en efectivo o a cuenta bancaria del representante autorizado de la oficina {empresa_nombre}.
+
+QUINTA: (Del incumplimiento).- Para el inesperado caso de incumplimiento en el pago de los honorarios por parte del CLIENTE, este se constituirá en mora automáticamente sin necesidad de requerimiento judicial o extrajudicial alguno, dándole por acuerdo de partes a este documento la calidad de título ejecutivo, sobre la suma liquida, exigible y de plazo vencido, establecida en la cláusula tercera inciso 3.2. de este contrato, de acuerdo a los Art. 378, 379 y siguientes del Código Procesal Civil.
+
+SEXTA: (Del INMUEBLE).- El CLIENTE declara que el INMUEBLE cuenta con toda la documentación legal al día y que tiene plena capacidad de disposición sobre dicho INMUEBLE.
+
+SÉPTIMA: (De la Vigencia).- Las partes acuerdan otorgarle al presente contrato una vigencia de: {vigencia_dias} días calendario, a partir de la fecha de suscripción; pudiendo ampliarse mediante una adenda, según acuerdo de partes. Asimismo, el CLIENTE reconoce los honorarios íntegros pactados, si a pesar de haber caducado el mismo, la venta se realizará como consecuencia de las gestiones de {empresa_nombre}, es decir a alguno de los clientes a quien se hubiera ofrecido o presentado el INMUEBLE objeto de este contrato o alguno de sus familiares. Sin embargo, no existirá obligación alguna de pago a {empresa_nombre} si el CLIENTE luego de concluido el contrato, gestiona por sí mismo la venta con otros interesados.
+
+OCTAVA: (De la Exclusividad).- Durante la vigencia del presente contrato, {empresa_nombre} tendrá con carácter de exclusividad, la intermediación comercial del INMUEBLE; por tal motivo, siendo {empresa_nombre} el intermediador designado, el CLIENTE deberá y coordinar con {empresa_nombre}, cualquier propuesta que dentro de la vigencia del contrato le sea ofrecida directamente por algún interesado. Si el propietario lograra vender por sí mismo o con la intermediación de terceros durante el plazo del contrato pagará a {empresa_nombre} los honorarios establecidos en el presente Contrato.
+
+NOVENA: (Obligaciones del CLIENTE).- Son obligaciones del CLIENTE: 1) Dar a conocer a {empresa_nombre} el estado real del INMUEBLE objeto del presente documento, así como los mobiliarios existentes en el mismo para evitar cualquier reciente posterior; 2) Abstenerse de realizar gestiones encaminadas a la celebración de los contratos de compraventa o promesa de compraventa sin intermediación del AGENTE ASOCIADO o {empresa_nombre}); 3) No consignar el INMUEBLE en otras compañías al tener {empresa_nombre} la exclusividad de comercialización; 4) Suministrar a {empresa_nombre} y/o al AGENTE ASOCIADO toda la información que le solicite de una manera clara y veraz y adjuntar a la firma del presente todos los documentos mencionados en la Cláusula Décima.
+
+DÉCIMA: (De los Documentos) - A la firma de este contrato, el CLIENTE deberá entregar copias de: 1) Títulos de Propiedad; 2) Certificado Catastral; 3) Plano de Uso de Suelo; 4) Pago de Impuestos; 5) Certificado Alodial; 6) En caso de departamento, Resolución Municipal de Aprobación de Edificio; 7) Cualquier otro documento que sea necesario para acreditar la titularidad de los derechos sobre el INMUEBLE.
+
+DÉCIMA PRIMERA: (De las Eventualidades) - En caso que, el CLIENTE decidiese rechazar alguna oferta recibida en el precio y condiciones establecidas en el presente contrato, o desistiere de continuar con la venta del INMUEBLE, pagará a {empresa_nombre} los honorarios pactados en la cláusula tercera inciso 3.2. de manera incondicional. De la misma manera, si el CLIENTE realiza cualquier otra operación inmobiliaria con el INMUEBLE, deberá pagar la comisión correspondiente, ya sea si lo diere en alquiler (50% del monto del alquiler) o anticresis (2% del monto del anticresis).
+
+DÉCIMA SEGUNDA: (Cambio de Agente) - {empresa_nombre} se reserva el derecho de cambiar al AGENTE encargado de la comercialización del INMUEBLE en los siguientes casos: (i) el AGENTE no cumpla con sus obligaciones dentro de {empresa_nombre}; y, (ii) en caso no esté brindando un servicio de calidad y excelence al CLIENTE.
+
+DÉCIMA TERCERA: (De las garantías) - El CLIENTE, garantiza el cumplimiento del presente contrato con la generalidad de todos sus bienes, habidos y por haber, sin ningún tipo de restricción.
+
+DÉCIMA CUARTA: (De la Aceptación y Conformidad) - Las partes, de común acuerdo manifiestan su aceptación y conformidad con todas y cada una de las cláusulas del presente Contrato, reconociendo que es único e indivisible, en todas sus partes.

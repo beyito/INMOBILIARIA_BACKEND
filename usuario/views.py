@@ -9,13 +9,13 @@ from rest_framework import status
 from .serializers import UsuarioSerializer, PrivilegioSerializer, GrupoSerializer, ComponenteSerializer, PasswordResetRequestSerializer, PasswordResetVerifyCodeSerializer, SetNewPasswordSerializer, SolicitudAgenteSerializer
 from django.core.mail import send_mail
 from django.contrib.auth.models import User
-from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente
+from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente, Dispositivo
 from rest_framework.views import APIView
 from django.conf import settings
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
+from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT  # Agregar TA_LEFT y TA_RIGHT aquí
 from reportlab.lib import colors
 from django.http import HttpResponse
 
@@ -74,7 +74,7 @@ def profile(request):
 # --------------------------
 
 @api_view(['POST'])
-@requiere_permiso("Usuario","crear")  # Este decorador ahora incluye el permission class
+# @requiere_permiso("Usuario","crear")  # Este decorador ahora incluye el permission class
 def register(request):
     grupo_id = request.data.get('grupo_id')
     print('DATOS ENTRANTES',request.data)
@@ -1000,4 +1000,198 @@ def listar_usuarios_agente(request):
         "error": 0,
         "message": "LISTADO DE USUARIOS DEL GRUPO AGENTE",
         "values": serializer.data
+    })
+# --------------------------
+# Contrato de Servicios Inmobiliarios
+# --------------------------
+
+class ContratoServiciosInmobiliariosView(APIView):
+    def post(self, request):
+        data = request.data
+        print("DATA CONTRATO SERVICIOS INMOBILIARIOS", data)
+        
+        # Ruta del archivo de plantilla
+        plantilla_path = os.path.join(settings.BASE_DIR, "usuario/contratoPDF/contrato_servicios_inmobiliarios.txt")
+        with open(plantilla_path, "r", encoding="utf-8") as f:
+            contrato_text = f.read()
+
+        # Reemplazar variables
+        contrato_text = contrato_text.format(
+            ciudad=data.get("ciudad", "________________"),
+            fecha=data.get("fecha", "____/____/______"),
+            empresa_nombre=data.get("empresa_nombre", "________________"),
+            empresa_representante=data.get("empresa_representante", "________________"),
+            empresa_ci=data.get("empresa_ci", "________________"),
+            empresa_domicilio=data.get("empresa_domicilio", "________________"),
+            
+            cliente_nombre=data.get("cliente_nombre", "________________"),
+            cliente_ci=data.get("cliente_ci", "________________"),
+            cliente_estado_civil=data.get("cliente_estado_civil", "________________"),
+            cliente_profesion=data.get("cliente_profesion", "________________"),
+            cliente_domicilio=data.get("cliente_domicilio", "________________"),
+            
+            agente_nombre=data.get("agente_nombre", "________________"),
+            agente_ci=data.get("agente_ci", "________________"),
+            agente_estado_civil=data.get("agente_estado_civil", "________________"),
+            agente_domicilio=data.get("agente_domicilio", "________________"),
+            
+            inmueble_direccion=data.get("inmueble_direccion", "________________"),
+            inmueble_superficie=data.get("inmueble_superficie", "________________"),
+            inmueble_distrito=data.get("inmueble_distrito", "________________"),
+            inmueble_manzana=data.get("inmueble_manzana", "________________"),
+            inmueble_lote=data.get("inmueble_lote", "________________"),
+            inmueble_zona=data.get("inmueble_zona", "________________"),
+            inmueble_matricula=data.get("inmueble_matricula", "________________"),
+            precio_inmueble=data.get("precio_inmueble", "________________"),
+            comision=data.get("comision", "____"),
+            vigencia_dias=data.get("vigencia_dias", "____"),
+            direccion_oficina=data.get("direccion_oficina", "________________"),
+            telefono_oficina=data.get("telefono_oficina", "________________"),
+            email_oficina=data.get("email_oficina", "________________"),
+        )
+
+        # Crear buffer en memoria
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=LETTER,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=40
+        )
+
+        # Estilos
+        styles = getSampleStyleSheet()
+        titulo_style = ParagraphStyle(
+            'Titulo',
+            parent=styles['Heading1'],
+            fontSize=14,
+            leading=18,
+            alignment=TA_CENTER,
+            spaceAfter=20,
+            textColor=colors.black,
+            fontName='Helvetica-Bold'
+        )
+        clausula_titulo_style = ParagraphStyle(
+            'ClausulaTitulo',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=14,
+            alignment=TA_LEFT,
+            spaceAfter=6,
+            textColor=colors.black,
+            fontName='Helvetica-Bold'
+        )
+        clausula_style = ParagraphStyle(
+            'Clausula',
+            fontSize=10,
+            leading=13,
+            alignment=TA_JUSTIFY,
+            spaceAfter=8,
+        )
+        firma_style = ParagraphStyle(
+            'Firma',
+            fontSize=10,
+            leading=12,
+            alignment=TA_CENTER,
+        )
+        footer_style = ParagraphStyle(
+            'Footer',
+            fontSize=8,
+            leading=10,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+        )
+
+        story = []
+
+        # Título
+        story.append(Paragraph("CONTRATO PRIVADO DE PRESTACIÓN DE SERVICIOS INMOBILIARIOS", titulo_style))
+        story.append(Spacer(1, 10))
+
+        # Introducción
+        intro_text = f"""Conste por el presente Contrato Privado de Servicios Inmobiliarios, que con el sólo reconocimiento de firmas surtirá los efectos de documento público, conforme al tenor de las siguientes cláusulas y condiciones:"""
+        story.append(Paragraph(intro_text, clausula_style))
+        story.append(Spacer(1, 15))
+
+        # Separar por párrafos usando doble salto de línea
+        lineas = contrato_text.strip().split("\n\n")
+
+        # Agregar cláusulas
+        for i, p in enumerate(lineas):
+            if p.strip().startswith("PRIMERA:") or p.strip().startswith("SEGUNDA:") or p.strip().startswith("TERCERA:") or p.strip().startswith("CUARTA:") or p.strip().startswith("QUINTA:") or p.strip().startswith("SEXTA:") or p.strip().startswith("SÉPTIMA:") or p.strip().startswith("OCTAVA:") or p.strip().startswith("NOVENA:") or p.strip().startswith("DÉCIMA:") or p.strip().startswith("DÉCIMA PRIMERA:") or p.strip().startswith("DÉCIMA SEGUNDA:") or p.strip().startswith("DÉCIMA TERCERA:") or p.strip().startswith("DÉCIMA CUARTA:"):
+                story.append(Paragraph(p.strip(), clausula_titulo_style))
+            else:
+                story.append(Paragraph(p.strip(), clausula_style))
+            
+            if i != len(lineas) - 1:
+                story.append(Spacer(1, 8))
+
+        # Fecha y lugar
+        story.append(Spacer(1, 20))
+        fecha_lugar = Paragraph(f"{data.get('ciudad', 'Trinidad')}, {data.get('fecha', '____/____/______')}.", clausula_titulo_style)
+        story.append(fecha_lugar)
+        story.append(Spacer(1, 25))
+
+        # Firmas
+        firmas_texto = f"""
+        __________________________<br/>
+        <b>{data.get('empresa_representante', '________________')}</b><br/>
+        <i>{data.get('empresa_nombre', '________________')}</i><br/><br/><br/>
+
+        __________________________<br/>
+        <b>{data.get('cliente_nombre', '________________')}</b><br/>
+        <i>PROPIETARIO/A</i><br/><br/><br/>
+
+        __________________________<br/>
+        <b>{data.get('agente_nombre', '________________')}</b><br/>
+        <i>AGENTE ASOCIADO</i>
+        """
+        story.append(Paragraph(firmas_texto, firma_style))
+
+        # Footer
+        story.append(Spacer(1, 20))
+        footer_text = f"""
+        {data.get('direccion_oficina', '________________')}<br/>
+        {data.get('telefono_oficina', '________________')}<br/>
+        {data.get('email_oficina', '________________')}<br/>
+        <i>Cada oficina es de propiedad y operación independiente</i>
+        """
+        story.append(Paragraph(footer_text, footer_style))
+
+        # Generar PDF
+        doc.build(story)
+        buffer.seek(0)
+
+        # Devolver PDF
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="contrato_servicios_inmobiliarios_{data.get("cliente_nombre","cliente")}.pdf"'
+        return response
+
+# --------------------------
+# registrar token de los dispositivos moviles para notificaciones push
+# --------------------------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def registrar_token(request):
+    usuario = request.user
+    token = request.data.get("token")
+    plataforma = request.data.get("plataforma", "android")
+
+    if not token:
+        return Response({"status": 2, "error": 1, "message": "no se pudo registrar el token"})
+
+    dispositivo, created = Dispositivo.objects.update_or_create(
+        usuario=usuario,
+        token=token,
+        defaults={"plataforma": plataforma},
+    )
+
+    return Response({
+                "status": 1,
+                "error": 0,
+                "message": "Se registró el token",
+                "values": token,
     })
