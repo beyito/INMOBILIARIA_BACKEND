@@ -214,7 +214,7 @@ def activar_usuario(request, usuario_id):
 # --------------------------
 
 @api_view(['POST'])
-@requiere_permiso("Grupo","crear") 
+#@requiere_permiso("Grupo","crear") 
 def crear_grupo(request):
     nombre = request.data.get('nombre')
     descripcion = request.data.get('descripcion', '')
@@ -306,7 +306,7 @@ def activar_grupo(request, grupo_id):
 # --------------------------
 
 @api_view(['GET'])
-@requiere_permiso("Componente","leer") 
+#@requiere_permiso("Componente","leer") 
 def listar_componentes(request):
     componentes = Componente.objects.filter(is_active=True)
     serializer = ComponenteSerializer(componentes, many=True)
@@ -395,7 +395,7 @@ def activar_componente(request, componente_id):
 
 
 @api_view(['POST'])
-@requiere_permiso("Privilegio","crear") 
+#@requiere_permiso("Privilegio","crear") 
 def asignar_privilegio(request):
     grupo_id = request.data.get('grupo_id')
     componente_id = request.data.get('componente_id')

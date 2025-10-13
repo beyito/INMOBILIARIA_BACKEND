@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.apps import apps
 from decouple import config
-import google.generativeai as genai
 import json
 import re
 from django.shortcuts import get_object_or_404
@@ -17,6 +16,16 @@ from .utils import (
     SCHEDULED_STATES, COMPLETED_STATES, CANCELED_STATES,
     detect_state_field, parse_date, daterange_filter
 )
+
+# -------- import seguro de google-generativeai (NO global configure) --------
+try:
+    import google.generativeai as genai
+    _GENAI_OK = True
+except Exception:
+    genai = None
+    _GENAI_OK = False
+# ---------------------------------------------------------------------------
+
 
 def load_cita_model():
     """
@@ -73,11 +82,13 @@ def load_cita_model():
 
     return best  # puede ser None
 
+
 def safe_count(qs):
     try:
         return qs.count()
     except Exception:
         return 0
+
 
 class KPIsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -161,6 +172,7 @@ class KPIsView(APIView):
 
         return Response(payload)
 
+
 class SeriesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -207,6 +219,7 @@ class SeriesView(APIView):
             points.append({'x': b.strftime(fmt) if b else '', 'y': float(row['y'])})
 
         return Response({'metric': metric, 'group_by': group_by, 'points': points})
+
 
 class RankingAgentesView(APIView):
     permission_classes = [IsAuthenticated]
@@ -262,7 +275,8 @@ class RankingAgentesView(APIView):
             items.append({'entity_id': entity_id, 'entity_name': name, 'value': float(row['value'])})
 
         return Response({'by': by, 'items': items})
-    
+
+
 class AnunciosAgenteView(APIView):
     permission_classes = [IsAuthenticated]  # usa TokenAuthentication desde settings
 
@@ -323,57 +337,128 @@ class AnunciosAgenteView(APIView):
             return "Bajo"
 
         data["kpis"] = {
-            "desempeno": desempeno,               # % de anuncios cerrados (vendido+alquilado+anticretico) / total anuncios
+            "desempeno": desempeno,               # % de anuncios cerrados / total anuncios
             "tasa_publicacion": tasa_publicacion, # % de publicaciones del agente que tienen anuncio
             "nota": etiqueta_desempeno(desempeno)
         }
 
         return Response(data, status=200)
-# Configura tu API Key de Gemini
-genai.configure(api_key=config('API_GEMINI'))
 
+
+# --------------------------- IA: Reporte con Gemini ---------------------------
 
 class ReporteIAGeminiView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        data = request.data
-        agente_id = data.get("agente_id")
+        # 1) Paquete presente
+        if not _GENAI_OK:
+            return Response(
+                {"detail": "Falta el paquete 'google-generativeai'. Ejecuta: pip install google-generativeai"},
+                status=503
+            )
 
-        # ✅ Buscar el agente en la base de datos
-        agente = Usuario.objects.get( id=agente_id)
+        # 2) API Key (acepta API_GEMINI o GOOGLE_API_KEY)
+        api_key = config('API_GEMINI', default=config('GOOGLE_API_KEY', default=''))
+        if not api_key:
+            return Response(
+                {"detail": "Falta API_GEMINI (o GOOGLE_API_KEY) en .env / settings."},
+                status=503
+            )
 
-        # ✅ Reemplazar "id" por "agente" con el nombre completo o el campo que tengas
-        data.pop("id", None)
-        data["agente"] = agente.nombre  # ajusta el campo según tu modelo (ej: agente.nombre_completo)
+        # 3) Payload desde el front
+        payload = request.data or {}
+        kpis = payload.get("kpis") if isinstance(payload.get("kpis"), dict) else None
+        notas = payload.get("notas", "")
+
+        # enriquecer con nombre del agente si llega (no bloquea si falla)
+        agente_nombre = None
+        agente_id = payload.get("agente_id") or getattr(request.user, "id", None)
+        if agente_id:
+            try:
+                u = Usuario.objects.get(pk=int(agente_id))
+                agente_nombre = getattr(u, "nombre", f"Agente {u.id}")
+            except Exception:
+                pass
+
+        if not kpis:
+            kpis = {k: v for k, v in payload.items() if k not in {"notas", "agente_id"}}
+        if not isinstance(kpis, dict) or not kpis:
+            return Response({"detail": "El campo 'kpis' debe ser un objeto con métricas."}, status=400)
+
+        info = {"agente": agente_nombre or (str(agente_id) if agente_id else "N/D"), "kpis": kpis}
 
         prompt = f"""
-        Eres un analista experto en desempeño inmobiliario. 
-        Con base en los siguientes datos JSON del agente, redacta un informe claro y profesional en español.
-        Incluye: 
-        - Un resumen del desempeño general. 
-        - Interpretación de los KPIs. 
-        - Recomendaciones o áreas de mejora.
-        Instrucciones importantes:
-        - Devuelve el texto completamente en formato **plano** (sin Markdown, sin **, ##, ni saltos de línea tipo \\n).
-        - Usa párrafos separados por puntos y espacios naturales.
-        - No incluyas etiquetas, ni formato de lista.
-        - Escribe de manera formal y fluida, como si fuera un informe final listo para mostrarse en pantalla.
+Eres un analista experto en desempeño inmobiliario.
+Con base en los siguientes datos, redacta un informe claro y profesional en español.
+Incluye:
+- Resumen del desempeño general.
+- Interpretación de KPIs.
+- 3 recomendaciones accionables.
 
-        Datos del agente:
-        {json.dumps(data, indent=4, ensure_ascii=False)}
-        """
+Instrucciones:
+- Devuelve texto plano (sin Markdown, sin **, ##, ni \\n).
+- Párrafos naturales, sin listas.
+
+Datos:
+{json.dumps(info, ensure_ascii=False)}
+Notas: {notas}
+"""
 
         try:
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(prompt)
-            reporte = response.text.strip()
+            import google.generativeai as genai  # import local por si el módulo cambia
+            genai.configure(api_key=api_key)
 
-            # Limpieza adicional por si Gemini devuelve caracteres extraños
-            reporte = re.sub(r'\*\*|##|###|\\n', ' ', reporte)
-            reporte = re.sub(r'\s+', ' ', reporte).strip()
+            # 4) Descubrir modelos disponibles y compatibles con generateContent
+            all_models = list(genai.list_models())
+            compatibles = [
+                m for m in all_models
+                if getattr(m, "supported_generation_methods", None)
+                and "generateContent" in m.supported_generation_methods
+            ]
 
-            return Response({"reporte_ia": reporte}, status=200)
+            if not compatibles:
+                return Response(
+                    {
+                        "detail": "Tu API key no tiene modelos con generateContent habilitado.",
+                        "available_models": [getattr(m, "name", "") for m in all_models],
+                    },
+                    status=500
+                )
+
+            # Preferencia: gemini-1.5 flash/pro si existen; si no, el primero compatible
+            preferencia = ["flash", "flash-latest", "pro", "pro-latest", "1.5", "1.0", "gemini"]
+            def score(mname: str) -> int:
+                name = mname.lower()
+                # mayor score si contiene palabras preferidas
+                return sum(p in name for p in preferencia)
+
+            # obtener mejor candidato por score
+            best = max(compatibles, key=lambda m: score(m.name or ""))
+            model_id = best.name
+
+            # 5) Generar
+            model = genai.GenerativeModel(model_id)
+            result = model.generate_content(prompt)
+            text = (getattr(result, "text", "") or "").strip()
+
+            # Limpieza defensiva
+            text = re.sub(r'\*\*|##|###|\\n', ' ', text)
+            text = re.sub(r'\s+', ' ', text).strip()
+
+            if not text:
+                return Response({"detail": "Gemini no devolvió texto.", "model_used": model_id}, status=502)
+
+            return Response({"reporte": text, "reporte_ia": text, "model_used": model_id}, status=200)
+
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            # Si falla por NotFound u otro, devolvemos también los modelos que ve tu key
+            try:
+                ms = [m.name for m in genai.list_models()]
+            except Exception:
+                ms = []
+            return Response(
+                {"detail": f"{type(e).__name__}: {e}", "available_models": ms},
+                status=500
+            )
 
