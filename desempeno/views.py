@@ -2,10 +2,15 @@ from datetime import datetime
 from django.db.models import Count, Avg, DurationField, ExpressionWrapper, F
 from django.db.models.functions import TruncWeek, TruncMonth, Cast
 from rest_framework.views import APIView
+from usuario.models import Usuario
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.apps import apps
-
+from decouple import config
+import google.generativeai as genai
+import json
+import re
+from django.shortcuts import get_object_or_404
 from .serializers import KPISerializer, SerieSerializer, RankingSerializer
 from .utils import (
     get_model, has_field, by_agent_filter, by_property_filter, state_q,
@@ -324,3 +329,51 @@ class AnunciosAgenteView(APIView):
         }
 
         return Response(data, status=200)
+# Configura tu API Key de Gemini
+genai.configure(api_key=config('API_GEMINI'))
+
+
+class ReporteIAGeminiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data
+        agente_id = data.get("agente_id")
+
+        # ✅ Buscar el agente en la base de datos
+        agente = Usuario.objects.get( id=agente_id)
+
+        # ✅ Reemplazar "id" por "agente" con el nombre completo o el campo que tengas
+        data.pop("id", None)
+        data["agente"] = agente.nombre  # ajusta el campo según tu modelo (ej: agente.nombre_completo)
+
+        prompt = f"""
+        Eres un analista experto en desempeño inmobiliario. 
+        Con base en los siguientes datos JSON del agente, redacta un informe claro y profesional en español.
+        Incluye: 
+        - Un resumen del desempeño general. 
+        - Interpretación de los KPIs. 
+        - Recomendaciones o áreas de mejora.
+        Instrucciones importantes:
+        - Devuelve el texto completamente en formato **plano** (sin Markdown, sin **, ##, ni saltos de línea tipo \\n).
+        - Usa párrafos separados por puntos y espacios naturales.
+        - No incluyas etiquetas, ni formato de lista.
+        - Escribe de manera formal y fluida, como si fuera un informe final listo para mostrarse en pantalla.
+
+        Datos del agente:
+        {json.dumps(data, indent=4, ensure_ascii=False)}
+        """
+
+        try:
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = model.generate_content(prompt)
+            reporte = response.text.strip()
+
+            # Limpieza adicional por si Gemini devuelve caracteres extraños
+            reporte = re.sub(r'\*\*|##|###|\\n', ' ', reporte)
+            reporte = re.sub(r'\s+', ' ', reporte).strip()
+
+            return Response({"reporte_ia": reporte}, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
