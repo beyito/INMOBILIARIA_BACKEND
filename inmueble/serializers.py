@@ -89,3 +89,61 @@ class AnuncioUpdateSerializer(serializers.ModelSerializer):
             "estado": {"required": False},
             "is_active": {"required": False},
         }
+
+# En tu serializers.py
+class AnuncioSerializer(serializers.ModelSerializer):
+    inmueble_info = serializers.SerializerMethodField()
+    agente_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AnuncioModel
+        fields = [
+            'id', 'inmueble', 'inmueble_info', 'estado', 'prioridad', 
+            'is_active', 'fecha_publicacion', 'agente_info'
+        ]
+    
+    def get_inmueble_info(self, obj):
+        """Devuelve toda la información del inmueble"""
+        inmueble = obj.inmueble
+        if not inmueble:
+            return None
+            
+        return {
+            'id': inmueble.id,
+            'titulo': inmueble.titulo,
+            'descripcion': inmueble.descripcion,
+            'direccion': inmueble.direccion,
+            'ciudad': inmueble.ciudad,
+            'zona': inmueble.zona,
+            'superficie': str(inmueble.superficie),
+            'dormitorios': inmueble.dormitorios,
+            'baños': inmueble.baños,
+            'precio': str(inmueble.precio),
+            'tipo_operacion': inmueble.tipo_operacion,
+            'latitud': str(inmueble.latitud) if inmueble.latitud else None,
+            'longitud': str(inmueble.longitud) if inmueble.longitud else None,
+            'tipo_inmueble': {
+                'id': inmueble.tipo_inmueble.id,
+                'nombre': inmueble.tipo_inmueble.nombre,
+                'descripcion': inmueble.tipo_inmueble.descripcion
+            } if inmueble.tipo_inmueble else None,
+            'fotos': [
+                {
+                    'id': foto.id,
+                    'url': foto.url if foto.url else None,
+                    'descripcion': foto.descripcion
+                } for foto in inmueble.fotos.all()
+            ] if hasattr(inmueble, 'fotos') else []
+        }
+        
+    def get_agente_info(self, obj):
+            """Información del agente"""
+            if obj.inmueble and obj.inmueble.agente:
+                agente = obj.inmueble.agente
+                return {
+                    'id': agente.id,
+                    'nombre': agente.nombre,    
+                    'email': agente.correo,       
+                    'telefono': agente.telefono   
+                }
+            return None
