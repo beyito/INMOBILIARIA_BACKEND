@@ -116,13 +116,8 @@ class AnuncioModel(models.Model):
 
     class Meta:
         db_table = "anuncio"
-        ordering = ['-prioridad', '-fecha_publicacion']  # 🆕 Orden automático
+        ordering = ['-prioridad', '-fecha_publicacion']  # Orden automático
     
-    def save(self, *args, **kwargs):
-        #  si is_active es False, estado = inactivo
-        if not self.is_active and self.estado != 'inactivo':
-            self.estado = 'inactivo'
-        super().save(*args, **kwargs)    
 
 class FotoModel(models.Model):
     inmueble = models.ForeignKey(

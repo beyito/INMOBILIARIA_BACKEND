@@ -35,6 +35,7 @@ urlpatterns = [
     path('anuncios/crear/<int:inmueble_id>', views.admin_crear_anuncio, name='admin_crear_anuncio'),
     path('anuncios/<int:anuncio_id>', views.admin_actualizar_anuncio, name='admin_actualizar_anuncio'),
     path('anuncios/no_publicados', views.admin_inmuebles_sin_anuncio, name='admin_inmuebles_sin_anuncio'),
+    path('anuncios/detalle/<int:anuncio_id>', views.admin_obtener_anuncio, name='admin_obtener_anuncio'), 
 
     path('listar_anuncios_disponibles',views.listar_anuncios_disponibles, name='listar_anuncios_disponibles'),
 

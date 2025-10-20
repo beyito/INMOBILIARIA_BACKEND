@@ -625,13 +625,17 @@ def resumen_mis_inmuebles(request):
 def admin_listar_anuncios(request):
     """
     Lista TODOS los anuncios con filtros
-    ?estado=disponible&prioridad=destacado&agente_id=1
+    ?estado=disponible&prioridad=destacado&agente_id=1&show_all=true
     """
     estado = request.GET.get('estado')
     prioridad = request.GET.get('prioridad')
     agente_id = request.GET.get('agente_id')
+    show_all = request.GET.get('show_all')
     
-    anuncios = AnuncioModel.objects.filter(is_active=True)
+    if show_all and show_all.lower() == 'true':
+        anuncios = AnuncioModel.objects.all()  #TODOS 
+    else:
+        anuncios = AnuncioModel.objects.filter(is_active=True)  #activos
     
     # Filtros opcionales
     if estado:
@@ -647,7 +651,7 @@ def admin_listar_anuncios(request):
     return Response({
         "status": 1,
         "error": 0,
-        "message": "LISTADO DE ANUNCIOS",
+        "message": "LISTADO DE ANUNCIOS", 
         "values": {"anuncios": serializer.data}
     })
 
@@ -727,4 +731,27 @@ def admin_inmuebles_sin_anuncio(request):
         "error": 0,
         "message": "INMUEBLES APROBADOS SIN ANUNCIO",
         "values": {"inmuebles": serializer.data}
+    })
+
+@api_view(['GET'])
+@requiere_permiso("Anuncio", "leer")
+def admin_obtener_anuncio(request, anuncio_id):
+    """Obtiene un anuncio específico con información completa"""
+    anuncio = get_object_or_404(
+        AnuncioModel.objects.select_related(
+            'inmueble',
+            'inmueble__agente',
+            'inmueble__tipo_inmueble'
+        ).prefetch_related(
+            'inmueble__fotos'  # ✅ Precargar fotos
+        ),
+        id=anuncio_id
+    )
+    
+    serializer = AnuncioSerializer(anuncio)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "DETALLE DEL ANUNCIO",
+        "values": {"anuncio": serializer.data}
     })
