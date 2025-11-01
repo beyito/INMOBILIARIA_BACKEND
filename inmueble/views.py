@@ -465,7 +465,56 @@ def listar_inmuebles(request):
         "message": "LISTA DE INMUEBLES APROBADOS Y PUBLICADOS",
         "values": {"inmuebles": serializer.data}
     })
+#Listar inmuebles aprobados no publicados
+@api_view(['GET'])
+def listar_inmuebles_aprobados_no_publicados(request):
+    """
+    Lista inmuebles aprobados que NO están publicados.
+    Para seleccionar en contratos - inmuebles disponibles pero sin anuncio activo.
+    """
+    try:
+        # Filtrar: aprobados, activos, pero SIN anuncio activo O con anuncio no disponible
+        qs = (
+            InmuebleModel.objects
+            .filter(estado="aprobado", is_active=True)
+            .filter(
+                Q(anuncio__isnull=True) |  # No tiene anuncio
+                Q(anuncio__is_active=False) |  # Anuncio inactivo
+                Q(anuncio__estado='no_publicado')  # Anuncio no publicado
+            )
+            .select_related("tipo_inmueble")
+            .prefetch_related("fotos")
+            .order_by("-id")
+            .distinct()
+        )
 
+        # Filtro opcional por búsqueda
+        q = request.GET.get("q")
+        if q:
+            qs = qs.filter(
+                Q(titulo__icontains=q) |
+                Q(descripcion__icontains=q) |
+                Q(direccion__icontains=q) |
+                Q(ciudad__icontains=q) |
+                Q(zona__icontains=q)
+            )
+
+        serializer = InmuebleSerializer(qs, many=True, context={'request': request})
+        
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": "LISTA DE INMUEBLES APROBADOS NO PUBLICADOS",
+            "values": {"inmuebles": serializer.data}
+        })
+
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al cargar inmuebles: {str(e)}",
+            "values": {"inmuebles": []}
+        }, status=500)
 
 
 @api_view(['GET'])

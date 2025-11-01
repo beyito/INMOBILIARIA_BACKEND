@@ -25,4 +25,5 @@ urlpatterns = [
     path('contacto/', include('contacto.urls')),
     path('cita/'    , include('cita.urls')),
     path('api/desempeno/', include('desempeno.urls')),
+    path('contrato/', include('contrato.urls')),
 ]
