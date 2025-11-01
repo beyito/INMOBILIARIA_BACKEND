@@ -10,7 +10,9 @@ from .serializers import UsuarioSerializer, PrivilegioSerializer, GrupoSerialize
 from django.core.mail import send_mail
 from django.contrib.auth.models import User
 from .models import PasswordResetCode, Usuario, PasswordResetCode, Grupo, SolicitudAgente, Privilegio, Componente, Dispositivo
-from rest_framework.views import APIView
+from inmueble.models import InmuebleModel as Inmueble
+from contrato.models import Contrato
+from rest_framework.views import APIView 
 from django.conf import settings
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -18,7 +20,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT  # Agregar TA_LEFT y TA_RIGHT aquí
 from reportlab.lib import colors
 from django.http import HttpResponse
-
+from decimal import Decimal, InvalidOperation
 from inmobiliaria.permissions import requiere_actualizacion,requiere_creacion, requiere_eliminacion, requiere_lectura, requiere_permiso
 from utils.encrypted_logger import registrar_accion, leer_logs
 import os
@@ -1004,11 +1006,159 @@ def listar_usuarios_agente(request):
 # --------------------------
 # Contrato de Servicios Inmobiliarios
 # --------------------------
-
 class ContratoServiciosInmobiliariosView(APIView):
     def post(self, request):
         data = request.data
         print("DATA CONTRATO SERVICIOS INMOBILIARIOS", data)
+        
+        try:
+            agente = Usuario.objects.get(id=data.get('agente_id'))
+            inmueble = Inmueble.objects.get(id=data.get('inmueble_id'))
+            
+            # ✅ BUSCAR contrato existente para el mismo agente e inmueble
+            contrato_existente = Contrato.objects.filter(
+                agente=agente,
+                inmueble=inmueble,
+                tipo_contrato='servicios'
+            ).first()
+            
+            # Función helper para convertir a Decimal seguro
+            def safe_decimal(value, default=0):
+                if value is None or value == '':
+                    return default
+                try:
+                    # Remover posibles comas y convertir a Decimal
+                    if isinstance(value, str):
+                        value = value.replace(',', '')
+                    return Decimal(str(value))
+                except (ValueError, TypeError, InvalidOperation):
+                    return default
+            
+            if contrato_existente:
+                # ✅ ACTUALIZAR contrato existente
+                print(f"🔄 Actualizando contrato existente ID: {contrato_existente.id}")
+                
+                contrato_existente.ciudad = data.get('ciudad', contrato_existente.ciudad)
+                contrato_existente.fecha_contrato = data.get('fecha', contrato_existente.fecha_contrato)
+                
+                # Partes del contrato
+                contrato_existente.parte_contratante_nombre = data.get('cliente_nombre', contrato_existente.parte_contratante_nombre)
+                contrato_existente.parte_contratante_ci = data.get('cliente_ci', contrato_existente.parte_contratante_ci)
+                contrato_existente.parte_contratante_domicilio = data.get('cliente_domicilio', contrato_existente.parte_contratante_domicilio)
+                
+                contrato_existente.parte_contratada_nombre = data.get('empresa_nombre', contrato_existente.parte_contratada_nombre)
+                contrato_existente.parte_contratada_ci = data.get('empresa_ci', contrato_existente.parte_contratada_ci)
+                contrato_existente.parte_contratada_domicilio = data.get('empresa_domicilio', contrato_existente.parte_contratada_domicilio)
+                
+                # Términos económicos - CONVERSIÓN SEGURA A DECIMAL
+                contrato_existente.comision_porcentaje = safe_decimal(data.get('comision'), contrato_existente.comision_porcentaje)
+                contrato_existente.vigencia_dias = data.get('vigencia_dias', contrato_existente.vigencia_dias)
+                contrato_existente.monto = safe_decimal(data.get('precio_inmueble'), contrato_existente.monto)
+                
+                # Calcular comisión_monto automáticamente si es necesario
+                if contrato_existente.monto and contrato_existente.comision_porcentaje:
+                    contrato_existente.comision_monto = (contrato_existente.monto * contrato_existente.comision_porcentaje) / 100
+                
+                # Actualizar detalles adicionales (merge con existentes)
+                detalles_actuales = contrato_existente.detalles_adicionales or {}
+                nuevos_detalles = {
+                    'empresa_representante': data.get('empresa_representante', detalles_actuales.get('empresa_representante')),
+                    'cliente_estado_civil': data.get('cliente_estado_civil', detalles_actuales.get('cliente_estado_civil')),
+                    'cliente_profesion': data.get('cliente_profesion', detalles_actuales.get('cliente_profesion')),
+                    'agente_nombre': data.get('agente_nombre', detalles_actuales.get('agente_nombre')),
+                    'agente_ci': data.get('agente_ci', detalles_actuales.get('agente_ci')),
+                    'agente_estado_civil': data.get('agente_estado_civil', detalles_actuales.get('agente_estado_civil')),
+                    'agente_domicilio': data.get('agente_domicilio', detalles_actuales.get('agente_domicilio')),
+                    'inmueble_direccion': data.get('inmueble_direccion', detalles_actuales.get('inmueble_direccion')),
+                    'inmueble_superficie': data.get('inmueble_superficie', detalles_actuales.get('inmueble_superficie')),
+                    'inmueble_distrito': data.get('inmueble_distrito', detalles_actuales.get('inmueble_distrito')),
+                    'inmueble_manzana': data.get('inmueble_manzana', detalles_actuales.get('inmueble_manzana')),
+                    'inmueble_lote': data.get('inmueble_lote', detalles_actuales.get('inmueble_lote')),
+                    'inmueble_zona': data.get('inmueble_zona', detalles_actuales.get('inmueble_zona')),
+                    'inmueble_matricula': data.get('inmueble_matricula', detalles_actuales.get('inmueble_matricula')),
+                    'precio_inmueble': data.get('precio_inmueble', detalles_actuales.get('precio_inmueble')),
+                    'direccion_oficina': data.get('direccion_oficina', detalles_actuales.get('direccion_oficina')),
+                    'telefono_oficina': data.get('telefono_oficina', detalles_actuales.get('telefono_oficina')),
+                    'email_oficina': data.get('email_oficina', detalles_actuales.get('email_oficina')),
+                }
+                contrato_existente.detalles_adicionales = nuevos_detalles
+                
+                contrato_existente.save()
+                contrato = contrato_existente
+                print(f"✅ Contrato actualizado - ID: {contrato.id}")
+                print(f"💰 Monto guardado: {contrato.monto}")
+                print(f"📊 Comisión %: {contrato.comision_porcentaje}")
+                print(f"💵 Comisión monto: {contrato.comision_monto}")
+                
+            else:
+                # ✅ CREAR nuevo contrato si no existe
+                # Convertir valores a Decimal de forma segura
+                precio_inmueble = safe_decimal(data.get('precio_inmueble'))
+                comision_porcentaje = safe_decimal(data.get('comision'))
+                
+                # Calcular comisión_monto
+                comision_monto = None
+                if precio_inmueble and comision_porcentaje:
+                    comision_monto = (precio_inmueble * comision_porcentaje) / 100
+                
+                contrato = Contrato.objects.create(
+                    agente=agente,
+                    inmueble=inmueble,
+                    creado_por=request.user,
+                    
+                    tipo_contrato='servicios',
+                    ciudad=data.get('ciudad', ''),
+                    fecha_contrato=data.get('fecha', ''),
+                    
+                    parte_contratante_nombre=data.get('cliente_nombre', ''),
+                    parte_contratante_ci=data.get('cliente_ci', ''),
+                    parte_contratante_domicilio=data.get('cliente_domicilio', ''),
+                    
+                    parte_contratada_nombre=data.get('empresa_nombre', ''),
+                    parte_contratada_ci=data.get('empresa_ci', ''),
+                    parte_contratada_domicilio=data.get('empresa_domicilio', ''),
+                    
+                    monto=precio_inmueble,
+                    comision_porcentaje=comision_porcentaje,
+                    comision_monto=comision_monto,
+                    vigencia_dias=data.get('vigencia_dias', 0),
+                    
+                    detalles_adicionales={
+                        'empresa_representante': data.get('empresa_representante', ''),
+                        'cliente_estado_civil': data.get('cliente_estado_civil', ''),
+                        'cliente_profesion': data.get('cliente_profesion', ''),
+                        'agente_nombre': data.get('agente_nombre', ''),
+                        'agente_ci': data.get('agente_ci', ''),
+                        'agente_estado_civil': data.get('agente_estado_civil', ''),
+                        'agente_domicilio': data.get('agente_domicilio', ''),
+                        'inmueble_direccion': data.get('inmueble_direccion', ''),
+                        'inmueble_superficie': data.get('inmueble_superficie', ''),
+                        'inmueble_distrito': data.get('inmueble_distrito', ''),
+                        'inmueble_manzana': data.get('inmueble_manzana', ''),
+                        'inmueble_lote': data.get('inmueble_lote', ''),
+                        'inmueble_zona': data.get('inmueble_zona', ''),
+                        'inmueble_matricula': data.get('inmueble_matricula', ''),
+                        'precio_inmueble': data.get('precio_inmueble', ''),
+                        'direccion_oficina': data.get('direccion_oficina', ''),
+                        'telefono_oficina': data.get('telefono_oficina', ''),
+                        'email_oficina': data.get('email_oficina', ''),
+                    }
+                )
+                print(f"✅ Nuevo contrato creado - ID: {contrato.id}")
+                print(f"💰 Monto guardado: {contrato.monto}")
+                print(f"📊 Comisión %: {contrato.comision_porcentaje}")
+                print(f"💵 Comisión monto: {contrato.comision_monto}")
+            
+        except Usuario.DoesNotExist:
+            return Response({"error": "Agente no encontrado"}, status=400)
+        except Inmueble.DoesNotExist:
+            return Response({"error": "Inmueble no encontrado"}, status=400)
+        except Exception as e:
+            print(f"❌ Error al guardar/actualizar contrato: {e}")
+            print(f"🔍 Tipo de error: {type(e)}")
+            import traceback
+            print(f"🔍 Traceback: {traceback.format_exc()}")
+            return Response({"error": f"Error al procesar contrato: {str(e)}"}, status=500)
         
         # Ruta del archivo de plantilla
         plantilla_path = os.path.join(settings.BASE_DIR, "usuario/contratoPDF/contrato_servicios_inmobiliarios.txt")
