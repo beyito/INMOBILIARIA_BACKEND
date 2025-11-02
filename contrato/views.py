@@ -81,17 +81,19 @@ def dashboard_comisiones(request):
         
         # Top 5 contratos con mayor comisión
         top_contratos = contratos.select_related('agente', 'inmueble').order_by('-comision_monto')[:5]
+        top_contratos = contratos.select_related('agente', 'inmueble').order_by('-comision_monto')[:5]
         top_contratos_data = []
         for contrato in top_contratos:
             top_contratos_data.append({
-                'id': contrato.id,
-                'cliente': contrato.parte_contratante_nombre,
-                'agente': contrato.agente.nombre,
-                'inmueble': contrato.inmueble.titulo if contrato.inmueble else 'N/A',
-                'tipo_contrato': contrato.get_tipo_contrato_display(),
-                'comision_monto': float(contrato.comision_monto or 0),
-                'comision_porcentaje': float(contrato.comision_porcentaje or 0),
-                'fecha': contrato.fecha_contrato
+            'id': contrato.id,
+            'cliente': contrato.parte_contratante_nombre,
+            'agente': contrato.agente.nombre,
+            'inmueble': contrato.inmueble.titulo if contrato.inmueble else 'N/A',
+            'tipo_contrato': contrato.get_tipo_contrato_display(),
+            'monto_contrato': float(contrato.monto or 0),  # ✅ NUEVO
+            'comision_monto': float(contrato.comision_monto or 0),
+            'comision_porcentaje': float(contrato.comision_porcentaje or 0),
+            'fecha': contrato.fecha_contrato
             })
         if incluir_servicios:
             stats_generales['contratos_servicios'] = contratos.filter(tipo_contrato='servicios').count()
@@ -130,8 +132,13 @@ def detalle_comisiones_agente(request, agente_id):
         # Filtros
         fecha_inicio = request.GET.get('fecha_inicio')
         fecha_fin = request.GET.get('fecha_fin')
+        incluir_servicios = request.GET.get('incluir_servicios', 'false').lower() == 'true'
         
-        contratos_agente = Contrato.objects.filter(agente=agente, estado='activo')
+        # Base queryset - aplicar filtro de servicios
+        if incluir_servicios:
+            contratos_agente = Contrato.objects.filter(agente=agente, estado='activo')
+        else:
+            contratos_agente = Contrato.objects.filter(agente=agente, estado='activo').exclude(tipo_contrato='servicios')
         
         if fecha_inicio:
             contratos_agente = contratos_agente.filter(fecha_contrato__gte=fecha_inicio)
@@ -145,6 +152,7 @@ def detalle_comisiones_agente(request, agente_id):
             'total_contratos': contratos_agente.count(),
             'total_comision': float(contratos_agente.aggregate(Sum('comision_monto'))['comision_monto__sum'] or 0),
             'comision_promedio': float(contratos_agente.aggregate(avg=Avg('comision_porcentaje'))['avg'] or 0),
+            'monto_total_contratos': float(contratos_agente.aggregate(Sum('monto'))['monto__sum'] or 0),
         }
         
         # Contratos del agente
@@ -155,6 +163,7 @@ def detalle_comisiones_agente(request, agente_id):
                 'cliente': contrato.parte_contratante_nombre,
                 'inmueble': contrato.inmueble.titulo if contrato.inmueble else 'N/A',
                 'tipo_contrato': contrato.get_tipo_contrato_display(),
+                'monto_contrato': float(contrato.monto or 0),
                 'comision_monto': float(contrato.comision_monto or 0),
                 'comision_porcentaje': float(contrato.comision_porcentaje or 0),
                 'fecha_contrato': contrato.fecha_contrato,
@@ -165,7 +174,8 @@ def detalle_comisiones_agente(request, agente_id):
         # Comisiones por tipo de contrato
         comisiones_tipo = contratos_agente.values('tipo_contrato').annotate(
             total_contratos=Count('id'),
-            total_comision=Sum('comision_monto')
+            total_comision=Sum('comision_monto'),
+            monto_total=Sum('monto')
         ).order_by('-total_comision')
         
         return Response({
