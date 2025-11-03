@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-=ho1+m-e7v&em6l97swgu32rk78+xv8o2z+4vz@f0s#kkfjqe1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', '10.0.2.2', 'localhost', '192.168.100.12']
+ALLOWED_HOSTS = ['*', '10.0.2.2', 'localhost', '192.168.0.12']
+# ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'usuario.Usuario'
 
@@ -173,7 +174,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://192.168.100.12:8000",
+    "http://192.168.0.12:8000",
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
     "http://localhost:5173",
     "https://inmueble-front.vercel.app",

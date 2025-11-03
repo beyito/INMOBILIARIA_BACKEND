@@ -1,3 +1,4 @@
+# contrato/models.py
 from django.db import models
 
 # Create your models here.
@@ -75,3 +76,4 @@ class Contrato(models.Model):
         if self.monto and self.comision_porcentaje and not self.comision_monto:
             self.comision_monto = (self.monto * self.comision_porcentaje) / 100
         super().save(*args, **kwargs)
+

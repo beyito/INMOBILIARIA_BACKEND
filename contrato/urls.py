@@ -1,3 +1,4 @@
+# contrato/urls.py
 from django.urls import path
 from . import views
 
@@ -10,4 +11,10 @@ urlpatterns = [
     path('aprobar/<int:contrato_id>/',views.aprobar_contrato,name='aprobar_contrato'),
     path('finalizar/<int:contrato_id>/',views.finalizar_contrato,name='finalizar_contrato'),
     path("generarContratoDeServiciosAnticreticoPdf", views.ContratoServiciosAnticreticoView.as_view(), name="generarContratoDeServiciosAnticreticoPdf"),
+    path('generarContratoAlquilerPdf', views.ContratoAlquilerView.as_view(), name='generarContratoAlquilerPdf'),
+    path('ver/<int:contrato_id>', views.ContratoViewPdf.as_view(), name='ver-contrato-pdf'),
+    path('listar', views.listar_contratos, name='listar-contratos'),
+   path('detalle-pdf/<int:contrato_id>', views.detalle_contrato_pdf, name='detalle-contrato-pdf'),
+    
+
 ]
