@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import Contrato
 
 class ContratoSerializer(serializers.ModelSerializer):
-    agente_nombre = serializers.CharField(source='agente.get_full_name', read_only=True)
+    agente_nombre = serializers.CharField(source='agente.nombre', read_only=True)
     inmueble_direccion = serializers.CharField(source='inmueble.direccion', read_only=True)
     tipo_contrato_display = serializers.CharField(source='get_tipo_contrato_display', read_only=True)
     
