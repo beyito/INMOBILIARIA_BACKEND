@@ -1,0 +1,55 @@
+{ciudad}, {fecha}
+
+                          CONTRATO DE ALQUILER
+
+Conste por el presente documento privado de CONTRATO DE ALQUILER, que al solo reconocimiento de firmas y rúbricas entre partes suscribientes podrá elevarse a instrumento público. El mismo se celebra conforme a las siguientes cláusulas:
+
+PRIMERA. - (PROPIETARIO)
+Yo, {arrendador_nombre}, con C.I. {arrendador_ci}, mayor de edad, hábil por ley, con domicilio en {arrendador_domicilio}, declaro ser legítimo propietario del inmueble ubicado en {inmueble_direccion}, zona {inmueble_zona}, con una superficie de {inmueble_superficie} m², debidamente registrado en las oficinas de Derechos Reales de la ciudad de {ciudad}.
+
+SEGUNDA. - (OBJETO)
+Por el presente contrato, doy en alquiler el inmueble señalado en la cláusula anterior, con servicio de energía eléctrica y agua potable, a favor del señor(a) {arrendatario_nombre}, con C.I. {arrendatario_ci}, mayor de edad, hábil por ley, con domicilio en {arrendatario_domicilio}, en calidad de INQUILINO(A).
+
+TERCERA. - (CANON DE ALQUILER)
+El canon mensual de alquiler se fija en la suma de Bs. {monto_alquiler} ( {monto_alquiler} BOLIVIANOS), que el inquilino se obliga a pagar puntualmente por mes vencido, dentro de los primeros cinco (5) días del mes siguiente.
+
+CUARTA. - (GARANTÍA)
+El INQUILINO entrega la suma de Bs. {monto_garantia} ( {monto_garantia} BOLIVIANOS) en calidad de garantía, la cual será devuelta al finalizar el contrato, una vez verificado el buen estado del inmueble, descontando los posibles daños ocasionados.
+
+QUINTA. - (PLAZO)
+El presente contrato tendrá una duración de {vigencia_meses} meses, computables desde la fecha {fecha_inicio} hasta {fecha_fin}, pudiendo ser renovado previo acuerdo entre las partes. A la finalización, el INQUILINO deberá devolver el inmueble en las mismas condiciones en las que lo recibió.
+
+SEXTA. - (OBLIGACIONES DEL INQUILINO)
+El INQUILINO se compromete a cuidar y conservar en buen estado el inmueble y sus instalaciones, corriendo por su cuenta los gastos de consumo de luz, agua y otros servicios básicos. Es responsable de cualquier daño o deterioro producido durante la vigencia del contrato, salvo los ocasionados por uso normal o desgaste natural.
+
+SÉPTIMA. - (USO Y DEVOLUCIÓN)
+El inmueble alquilado será destinado exclusivamente para uso de VIVIENDA. Queda prohibido darle otro uso, subalquilarlo, o utilizarlo para actividades contrarias a la ley. Al finalizar el contrato, el INQUILINO devolverá el inmueble al PROPIETARIO en las mismas condiciones en que lo recibió.
+
+OCTAVA. - (INCUMPLIMIENTO)
+El incumplimiento en el pago del alquiler o cualquiera de las cláusulas establecidas dará derecho al PROPIETARIO a rescindir el contrato, previo aviso por escrito de diez (10) días al INQUILINO.
+
+NOVENA. - (JURISDICCIÓN)
+Para la interpretación y cumplimiento del presente contrato, las partes se someten expresamente a las leyes vigentes del Estado Plurinacional de Bolivia y a la jurisdicción de los tribunales ordinarios de la ciudad de {ciudad}.
+
+DÉCIMA. - (CONFORMIDAD)
+Ambas partes declaran haber leído, comprendido y aceptado en todas sus partes el presente contrato, firmando en señal de conformidad en doble ejemplar del mismo tenor y efecto.
+
+En la ciudad de {ciudad}, a los {fecha}.
+
+
+
+_____________________________
+{arrendador_nombre}
+C.I. {arrendador_ci}
+PROPIETARIO
+
+
+_____________________________
+{arrendatario_nombre}
+C.I. {arrendatario_ci}
+INQUILINO
+
+
+_____________________________
+{agente_nombre}
+AGENTE INMOBILIARIO
