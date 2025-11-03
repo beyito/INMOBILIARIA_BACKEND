@@ -1,0 +1,82 @@
+PRIMERA: (De las Partes).- Intervienen en la celebración del presente Contrato:
+
+1.1. {empresa_representante}, mayor de edad, hábil por ley, de nacionalidad boliviano, identificado con Cédula de Identidad No. {empresa_ci}, domiciliado en {empresa_domicilio}, representante autorizado de la oficina {empresa_nombre} (en adelante "{empresa_nombre}").
+
+1.2. {cliente_nombre}, identificado con Cédula de Identidad No. {cliente_ci}, boliviano(a), {cliente_estado_civil}, {cliente_profesion}, con domicilio en {cliente_domicilio}, mayor de edad y hábil por Ley (en adelante el "CLIENTE").
+
+1.3. {agente_nombre}, identificado con Cédula de Identidad No. {agente_ci}, boliviano(a), {agente_estado_civil}, con domicilio en {agente_domicilio}, mayor de edad y hábil por Ley (en adelante el "AGENTE ASOCIADO").
+
+De igual forma, tanto {empresa_nombre}, el CLIENTE y el AGENTE, podrán denominarse en adelante, indistintamente como las "Partes" de manera conjunta o la "Parte" de manera individual.
+
+SEGUNDA: (De los antecedentes y las Declaraciones).-
+{empresa_nombre}, es una empresa dedicada a la prestación de servicios de intermediación inmobiliaria, franquiciada de la marca de servicios inmobiliarios RE/MAX, y con licencia de uso de marca para operar.
+A raíz de ello, {empresa_nombre} maneja una cartera de clientes interesados en operaciones de anticrético, alquiler y compraventa de bienes inmuebles en Bolivia.
+
+El CLIENTE declara ser propietario y tener plena capacidad de disposición del INMUEBLE con una superficie de {inmueble_superficie}, ubicado en {inmueble_direccion}, distrito N° {inmueble_distrito}, Mza. N° {inmueble_manzana}, Lote N° {inmueble_lote}, Zona {inmueble_zona}, inscrito en los registros de Derechos Reales bajo Matrícula Computarizada N° {inmueble_matricula} (en adelante, el "INMUEBLE").
+
+TERCERA: (Del Objeto, Monto y Honorarios).-
+Por el presente documento, el CLIENTE contrata los servicios de {empresa_nombre} a través de su AGENTE ASOCIADO para que realice todas las gestiones comerciales y legales necesarias para lograr la cesión del INMUEBLE en contrato de anticrético, conforme a los siguientes términos:
+
+3.1 Monto del Anticrético: Bs. {precio_inmueble}.
+3.2 La comisión pactada por la intermediación del contrato de anticrético, pagadera a favor de {empresa_nombre} y consecuentemente del AGENTE ASOCIADO, será del {comision}% sobre el monto total del anticrético acordado.
+
+CUARTA: (Del Pago de los Honorarios).-
+Los honorarios establecidos en la cláusula 3.2 deberán ser pagados de la siguiente manera:
+
+4.1 Paralelamente a la firma del contrato de anticrético entre el CLIENTE y el anticresista, y la recepción por parte del CLIENTE del dinero correspondiente.
+4.2 Los honorarios deberán ser cancelados únicamente en las oficinas de {empresa_nombre} o mediante transferencia a la cuenta bancaria del representante autorizado de la oficina.
+
+QUINTA: (Del Incumplimiento).-
+En caso de incumplimiento en el pago de los honorarios por parte del CLIENTE, este quedará en mora automática sin necesidad de requerimiento judicial o extrajudicial alguno, otorgándose al presente contrato calidad de título ejecutivo, sobre la suma líquida y exigible establecida en la cláusula tercera inciso 3.2, conforme a los Art. 378, 379 y siguientes del Código Procesal Civil.
+
+SEXTA: (Del INMUEBLE).-
+El CLIENTE declara que el INMUEBLE cuenta con toda la documentación legal al día y que se encuentra libre de gravámenes, embargos o litigios que impidan su entrega en contrato de anticrético.
+
+SÉPTIMA: (De la Vigencia).-
+Las partes acuerdan otorgar al presente contrato una vigencia de {vigencia_dias} días calendario, a partir de la fecha de suscripción.
+Si el contrato caduca y el anticrético se concreta con un interesado gestionado por {empresa_nombre}, el CLIENTE deberá cancelar los honorarios completos pactados, sin importar la fecha de cierre de la operación.
+
+OCTAVA: (De la Exclusividad).-
+Durante la vigencia del presente contrato, {empresa_nombre} tendrá exclusividad para la gestión del contrato de anticrético del INMUEBLE.
+Si el CLIENTE concreta el anticrético por sí mismo o mediante terceros durante la vigencia del contrato, deberá pagar los honorarios pactados en la cláusula tercera.
+
+NOVENA: (Obligaciones del CLIENTE).-
+Son obligaciones del CLIENTE:
+
+Informar de forma veraz sobre el estado del INMUEBLE;
+
+Abstenerse de negociar directamente con interesados durante la vigencia del contrato;
+
+No consignar el INMUEBLE con otras empresas mientras dure la exclusividad;
+
+Entregar a {empresa_nombre} toda la documentación requerida para el trámite del anticrético.
+
+DÉCIMA: (Documentación).-
+El CLIENTE deberá entregar copias de:
+
+Título de Propiedad;
+
+Certificado Catastral;
+
+Certificado Alodial;
+
+Último pago de impuestos;
+
+C.I. del propietario;
+
+En caso de condominio, Reglamento Interno;
+
+Otros documentos que acrediten la titularidad del INMUEBLE.
+
+DÉCIMA PRIMERA: (De las Eventualidades).-
+Si el CLIENTE decide retirar el INMUEBLE del mercado o rechazar una oferta que cumpla con el monto y condiciones establecidas, deberá pagar a {empresa_nombre} los honorarios pactados en la cláusula 3.2.
+Asimismo, si el CLIENTE realiza cualquier otra operación con el INMUEBLE (venta o alquiler), deberá pagar la comisión correspondiente (2% por anticrético, 50% de un mes por alquiler o la acordada por venta).
+
+DÉCIMA SEGUNDA: (Cambio de Agente).-
+{empresa_nombre} podrá cambiar al AGENTE ASOCIADO en caso de incumplimiento de funciones, inactividad o prestación ineficiente del servicio al CLIENTE.
+
+DÉCIMA TERCERA: (Garantías).-
+El CLIENTE garantiza el cumplimiento del presente contrato con todos sus bienes, habidos y por haber, sin restricción alguna.
+
+DÉCIMA CUARTA: (De la Aceptación y Conformidad).-
+Las partes declaran haber leído, comprendido y aceptado en todas sus partes el presente contrato, firmando en señal de conformidad en dos ejemplares del mismo tenor.
