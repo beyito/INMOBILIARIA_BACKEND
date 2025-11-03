@@ -83,3 +83,4 @@ __pycache__/
 usuario/management/
 secrets/
 inmobiliaria/settings.py
+contratos/

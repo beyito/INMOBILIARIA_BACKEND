@@ -1,4 +1,4 @@
-# serializers.py
+# inmueble/serializers.py
 from rest_framework import serializers
 from .models import InmuebleModel, TipoInmuebleModel, CambioInmuebleModel, FotoModel,AnuncioModel
 from usuario.models import Usuario

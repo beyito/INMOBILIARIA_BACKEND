@@ -1,36 +1,45 @@
-# views.py
-from django.db.models import Sum, Count, Q
-from django.utils import timezone
+# contrato/views.py
+# contrato/views.py
 from datetime import timedelta
+import os, io
+from decimal import Decimal, InvalidOperation
+
+from django.db.models import Sum, Count, Avg, Q
+from django.utils import timezone
+from django.http import HttpResponse, FileResponse
+from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Contrato
-from usuario.models import Usuario
-from django.db.models import Avg
-from .serializers import ContratoSerializer
-from inmueble.models import InmuebleModel
+from rest_framework.views import APIView
 
-from django.http import HttpResponse
 from fpdf import FPDF
-import os
-from django.conf import settings
-from django.contrib.auth.models import User
-from inmueble.models import InmuebleModel as Inmueble
-from contrato.models import Contrato
-from rest_framework.views import APIView 
-from django.conf import settings
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT, TA_RIGHT  # Agregar TA_LEFT y TA_RIGHT aquí
 from reportlab.lib import colors
-from django.http import HttpResponse
-from decimal import Decimal, InvalidOperation
-from inmobiliaria.permissions import requiere_actualizacion,requiere_creacion, requiere_eliminacion, requiere_lectura, requiere_permiso
+from reportlab.lib.units import cm
+
+from usuario.models import Usuario
+from inmueble.models import InmuebleModel as Inmueble
+from inmueble.models import InmuebleModel
+from contrato.models import Contrato
+from contrato.serializers import ContratoSerializer
+from inmobiliaria.permissions import (
+    requiere_actualizacion,
+    requiere_creacion,
+    requiere_eliminacion,
+    requiere_lectura,
+    requiere_permiso
+)
 from utils.encrypted_logger import registrar_accion, leer_logs
+
+
+from django.http import FileResponse, Http404
+
 import os
-import io
+
 @api_view(['GET'])
 # @requiere_permiso("Comision", "leer")
 def dashboard_comisiones(request):
@@ -782,3 +791,443 @@ class ContratoServiciosAnticreticoView(APIView):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="contrato_servicios_anticretico_inmobiliarios_{data.get("cliente_nombre","cliente")}.pdf"'
         return response
+class ContratoAlquilerView(APIView):
+    """
+    CU27 - Generación y registro de contratos de alquiler.
+    Entre el propietario (arrendador) y el inquilino (arrendatario).
+    """
+
+    def post(self, request):
+        try:
+            data = request.data
+            print("📄 DATA CONTRATO ALQUILER:", data)
+
+            # 1️⃣ Validar y obtener datos base
+            agente = Usuario.objects.get(id=data.get('agente_id'))
+            inmueble = Inmueble.objects.get(id=data.get('inmueble_id'))
+            # arrendador = inmueble.cliente  # 🔹 Propietario del inmueble
+            if inmueble.cliente:
+                arrendador = inmueble.cliente  # Dueño real
+            else:
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El inmueble no tiene un propietario (cliente) asignado. No se puede generar contrato de alquiler.",
+                    "values": {}
+                }, status=400)
+
+            if not arrendador:
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El inmueble no tiene un propietario asignado.",
+                    "values": {}
+                }, status=400)
+
+            # 2️⃣ Crear contrato
+            creador = request.user if request.user.is_authenticated else None
+
+            contrato = Contrato.objects.create(
+                agente=agente,
+                inmueble=inmueble,
+                creado_por=creador,
+                tipo_contrato='alquiler',
+                ciudad=data.get('ciudad', inmueble.ciudad or ''),
+                fecha_contrato=data.get('fecha', ''),
+                parte_contratante_nombre=arrendador.nombre,
+                parte_contratante_ci=arrendador.ci or '',
+                parte_contratante_domicilio=data.get('arrendador_domicilio', ''),
+                parte_contratada_nombre=data.get('arrendatario_nombre', ''),
+                parte_contratada_ci=data.get('arrendatario_ci', ''),
+                parte_contratada_domicilio=data.get('arrendatario_domicilio', ''),
+                monto=data.get('monto_alquiler', 0),
+                vigencia_meses=data.get('vigencia_meses', 0),
+                detalles_adicionales={
+                    'monto_garantia': data.get('monto_garantia', ''),
+                    'fecha_inicio': data.get('fecha_inicio', ''),
+                    'fecha_fin': data.get('fecha_fin', ''),
+                    'metodo_pago': data.get('metodo_pago', 'mensual'),
+                }
+            )
+
+            # 3️⃣ Actualizar anuncio del inmueble
+            anuncio = getattr(inmueble, 'anuncio', None)
+            if anuncio:
+                anuncio.estado = "alquilado"
+                anuncio.is_active = False
+                anuncio.save()
+                print(f"✅ Anuncio {anuncio.id} marcado como ALQUILADO")
+
+            # 🧾 Registrar acción en bitácora (opcional)
+            try:
+                registrar_accion(
+                    usuario=request.user,
+                    accion=f"Generó contrato de alquiler (ID {contrato.id}) para el inmueble ID {inmueble.id}.",
+                    ip=request.META.get("REMOTE_ADDR")
+                )
+            except Exception as e:
+                print(f"⚠️ No se registró en bitácora: {e}")
+
+            # 4️⃣ Generar PDF con formato legal (ReportLab)
+            plantilla_path = os.path.join(settings.BASE_DIR, "usuario/contratoPDF/contrato_alquiler.txt")
+            with open(plantilla_path, "r", encoding="utf-8") as f:
+                contrato_texto = f.read().format(**{
+                    "ciudad": data.get("ciudad", "________________"),
+                    "fecha": data.get("fecha", "____/____/______"),
+                    "arrendador_nombre": arrendador.nombre,
+                    "arrendador_ci": arrendador.ci or "_________",
+                    "arrendador_domicilio": data.get("arrendador_domicilio", "_________"),
+                    "arrendatario_nombre": data.get("arrendatario_nombre", "_________"),
+                    "arrendatario_ci": data.get("arrendatario_ci", "_________"),
+                    "arrendatario_domicilio": data.get("arrendatario_domicilio", "_________"),
+                    "inmueble_direccion": inmueble.direccion or "_________",
+                    "inmueble_zona": inmueble.zona or "_________",
+                    "inmueble_superficie": inmueble.superficie or "0",
+                    "monto_alquiler": data.get("monto_alquiler", "0"),
+                    "monto_garantia": data.get("monto_garantia", "0"),
+                    "vigencia_meses": data.get("vigencia_meses", "0"),
+                    "fecha_inicio": data.get("fecha_inicio", "____/____/______"),
+                    "fecha_fin": data.get("fecha_fin", "____/____/______"),
+                    "agente_nombre": agente.nombre,
+                })
+
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=LETTER,
+                rightMargin=40,
+                leftMargin=40,
+                topMargin=50,
+                bottomMargin=40
+            )
+
+            styles = getSampleStyleSheet()
+
+            # 🧾 Estilos personalizados
+            style_normal = ParagraphStyle(
+                'Normal',
+                fontSize=11,
+                leading=18,
+                alignment=TA_JUSTIFY
+            )
+
+            style_clausula = ParagraphStyle(
+                'Clausula',
+                fontSize=11,
+                leading=18,
+                alignment=TA_JUSTIFY,
+                spaceBefore=10,
+                spaceAfter=5
+            )
+
+            style_titulo = ParagraphStyle(
+                'Titulo',
+                fontSize=14,
+                alignment=TA_CENTER,
+                spaceAfter=15,
+                leading=20
+            )
+
+            story = []
+            story.append(Paragraph("<b>CONTRATO DE ALQUILER</b>", style_titulo))
+            story.append(Spacer(1, 10))
+
+            # 🪶 Nuevo bloque que respeta saltos de línea
+            for bloque in contrato_texto.split("\n\n"):
+                lineas = bloque.strip().split("\n")
+                if not lineas or lineas == ['']:
+                    story.append(Spacer(1, 8))
+                    continue
+
+                # Si es cláusula (PRIMERA, SEGUNDA...)
+                if lineas[0].strip().startswith((
+                    "PRIMERA", "SEGUNDA", "TERCERA", "CUARTA",
+                    "QUINTA", "SEXTA", "SÉPTIMA", "OCTAVA",
+                    "NOVENA", "DÉCIMA"
+                )):
+                    story.append(Paragraph(f"<b>{lineas[0]}</b>", style_clausula))
+                    for linea in lineas[1:]:
+                        story.append(Paragraph(linea, style_normal))
+                else:
+                    story.append(Paragraph("<br/>".join(lineas), style_normal))
+
+                story.append(Spacer(1, 12))
+
+            doc.build(story)
+            buffer.seek(0)
+
+            # 5️⃣ Guardar PDF en servidor
+            pdf_filename = f"contrato_alquiler_{contrato.id}.pdf"
+            pdf_path = os.path.join(settings.MEDIA_ROOT, 'contratos', pdf_filename)
+            os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+            with open(pdf_path, 'wb') as f:
+                f.write(buffer.getbuffer())
+
+            contrato.archivo_pdf = f"contratos/{pdf_filename}"
+            contrato.save()
+
+            # ✅ 6️⃣ Respuesta estandarizada
+            return Response({
+                "status": 1,
+                "error": 0,
+                "message": "Contrato de alquiler generado y registrado correctamente.",
+                "values": {
+                    "contrato_id": contrato.id,
+                    "inmueble_id": inmueble.id,
+                    "pdf_url": f"/media/contratos/{pdf_filename}",
+                    "anuncio_actualizado": bool(anuncio),
+                }
+            })
+
+        except Usuario.DoesNotExist:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": "Agente no encontrado.",
+                "values": {}
+            }, status=404)
+
+        except Inmueble.DoesNotExist:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": "Inmueble no encontrado.",
+                "values": {}
+            }, status=404)
+
+        except Exception as e:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": f"Error al generar contrato de alquiler: {str(e)}",
+                "values": {}
+            }, status=500)
+
+        
+
+
+class ContratoViewPdf(APIView):
+    """
+    Permite visualizar o descargar el contrato PDF por ID de contrato.
+    Ejemplo:
+        GET /contrato/ver/1?descargar=true
+    """
+
+    def get(self, request, contrato_id):
+        try:
+            contrato = Contrato.objects.get(id=contrato_id)
+            if not contrato.archivo_pdf:
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El contrato no tiene archivo PDF asociado.",
+                    "values": {}
+                }, status=404)
+
+            pdf_path = os.path.join(settings.MEDIA_ROOT, contrato.archivo_pdf.name)
+            if not os.path.exists(pdf_path):
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El archivo PDF no se encuentra en el servidor.",
+                    "values": {}
+                }, status=404)
+
+            # 📦 Si viene ?descargar=true, forzamos descarga
+            descargar = request.GET.get("descargar", "false").lower() == "true"
+            response = FileResponse(open(pdf_path, 'rb'), content_type='application/pdf')
+
+            if descargar:
+                response["Content-Disposition"] = f'attachment; filename="{os.path.basename(pdf_path)}"'
+
+            return response
+
+        except Contrato.DoesNotExist:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": "Contrato no encontrado.",
+                "values": {}
+            }, status=404)
+        except Exception as e:
+            return Response({
+                "status": 0,
+                "error": 1,
+                "message": f"Error al obtener contrato PDF: {str(e)}",
+                "values": {}
+            }, status=500)
+
+@api_view(['GET'])
+def listar_contratos(request):
+    """
+    Lista todos los contratos registrados en el sistema (con información del agente, cliente e inmueble).
+    Puedes filtrar por tipo o estado:
+        ?tipo=alquiler|venta|anticretico|servicios
+        ?estado=activo|finalizado|cancelado|pendiente
+    """
+    try:
+        tipo = request.GET.get("tipo")
+        estado = request.GET.get("estado")
+
+        # 🔍 Base queryset
+        contratos = Contrato.objects.select_related("agente", "inmueble")
+
+        # Aplicar filtros opcionales
+        if tipo:
+            contratos = contratos.filter(tipo_contrato=tipo)
+        if estado:
+            contratos = contratos.filter(estado=estado)
+
+        data = []
+        for c in contratos.order_by("-fecha_contrato"):
+            data.append({
+                "id": c.id,
+                "tipo_contrato": c.get_tipo_contrato_display(),
+                "estado": c.estado,
+                "ciudad": c.ciudad,
+                "fecha_contrato": c.fecha_contrato,
+                "fecha_inicio": c.fecha_inicio,
+                "fecha_fin": c.fecha_fin,
+                "vigencia_meses": c.vigencia_meses,
+                "monto": float(c.monto or 0),
+                "comision_porcentaje": float(c.comision_porcentaje or 0),
+                "comision_monto": float(c.comision_monto or 0),
+                "inmueble": {
+                    "id": c.inmueble.id if c.inmueble else None,
+                    "titulo": c.inmueble.titulo if c.inmueble else None,
+                    "direccion": c.inmueble.direccion if c.inmueble else None,
+                    "zona": c.inmueble.zona if c.inmueble else None,
+                    "ciudad": c.inmueble.ciudad if c.inmueble else None,
+                },
+                "agente": {
+                    "id": c.agente.id if c.agente else None,
+                    "nombre": c.agente.nombre if c.agente else None,
+                },
+                "propietario": {
+                    "nombre": c.parte_contratante_nombre,
+                    "ci": c.parte_contratante_ci,
+                },
+                "inquilino": {
+                    "nombre": c.parte_contratada_nombre,
+                    "ci": c.parte_contratada_ci,
+                },
+                "pdf_url": f"/media/{c.archivo_pdf}" if c.archivo_pdf else None,
+                "fecha_creacion": c.fecha_creacion,
+            })
+
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": "LISTADO DE CONTRATOS REGISTRADOS",
+            "values": {"contratos": data}
+        })
+
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al listar contratos: {str(e)}",
+            "values": {}
+        }, status=500)
+
+@api_view(['GET'])
+def detalle_contrato_pdf(request, contrato_id):
+    """
+    Retorna la información completa del contrato especificado.
+    Si se agrega '?descargar=true' en la URL, devuelve directamente el archivo PDF.
+    Ejemplo:
+        GET /contrato/detalle/1               -> devuelve JSON con todos los datos
+        GET /contrato/detalle/1?descargar=true -> descarga el PDF directamente
+    """
+    try:
+        contrato = Contrato.objects.select_related('agente', 'inmueble').get(id=contrato_id)
+
+        # 📦 Si se pide descarga directa del PDF
+        if request.GET.get("descargar", "false").lower() == "true":
+            if not contrato.archivo_pdf:
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El contrato no tiene archivo PDF asociado.",
+                    "values": {}
+                }, status=404)
+
+            pdf_path = os.path.join(settings.MEDIA_ROOT, contrato.archivo_pdf.name)
+            if not os.path.exists(pdf_path):
+                return Response({
+                    "status": 0,
+                    "error": 1,
+                    "message": "El archivo PDF no existe en el servidor.",
+                    "values": {}
+                }, status=404)
+
+            # 📥 Responder como archivo descargable
+            response = FileResponse(open(pdf_path, 'rb'), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{os.path.basename(pdf_path)}"'
+            return response
+
+        # 📄 Si no se pide descarga → devolver datos JSON completos
+        data = {
+            "id": contrato.id,
+            "tipo_contrato": contrato.get_tipo_contrato_display(),
+            "estado": contrato.estado,
+            "ciudad": contrato.ciudad,
+            "fecha_contrato": contrato.fecha_contrato,
+            "fecha_inicio": contrato.fecha_inicio,
+            "fecha_fin": contrato.fecha_fin,
+            "vigencia_meses": contrato.vigencia_meses,
+            "monto": float(contrato.monto or 0),
+            "comision_porcentaje": float(contrato.comision_porcentaje or 0),
+            "comision_monto": float(contrato.comision_monto or 0),
+            "detalles_adicionales": contrato.detalles_adicionales,
+            "inmueble": {
+                "id": contrato.inmueble.id if contrato.inmueble else None,
+                "titulo": contrato.inmueble.titulo if contrato.inmueble else None,
+                "direccion": contrato.inmueble.direccion if contrato.inmueble else None,
+                "zona": contrato.inmueble.zona if contrato.inmueble else None,
+                "ciudad": contrato.inmueble.ciudad if contrato.inmueble else None,
+                "tipo_operacion": contrato.inmueble.tipo_operacion if contrato.inmueble else None,
+                "superficie": float(contrato.inmueble.superficie or 0) if contrato.inmueble else None,
+                "precio": float(contrato.inmueble.precio or 0) if contrato.inmueble else None,
+            },
+            "agente": {
+                "id": contrato.agente.id if contrato.agente else None,
+                "nombre": contrato.agente.nombre if contrato.agente else None,
+                "email": contrato.agente.email if contrato.agente else None,
+            },
+            "propietario": {
+                "nombre": contrato.parte_contratante_nombre,
+                "ci": contrato.parte_contratante_ci,
+                "domicilio": contrato.parte_contratante_domicilio,
+            },
+            "inquilino": {
+                "nombre": contrato.parte_contratada_nombre,
+                "ci": contrato.parte_contratada_ci,
+                "domicilio": contrato.parte_contratada_domicilio,
+            },
+            "pdf_url": f"/media/{contrato.archivo_pdf}" if contrato.archivo_pdf else None,
+            "fecha_creacion": contrato.fecha_creacion,
+            "fecha_actualizacion": contrato.fecha_actualizacion,
+        }
+
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": f"DETALLE DEL CONTRATO ID {contrato_id}",
+            "values": {"contrato": data}
+        })
+
+    except Contrato.DoesNotExist:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Contrato no encontrado.",
+            "values": {}
+        }, status=404)
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al obtener detalle del contrato: {str(e)}",
+            "values": {}
+        }, status=500)
