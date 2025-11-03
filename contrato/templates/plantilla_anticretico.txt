@@ -1,0 +1,70 @@
+CONTRATO PRIVADO DE ANTICRÉTICO
+================================
+
+Conste por el presente documento privado de CONTRATO DE ANTICRÉTICO, que podrá ser elevado a instrumento público a simple reconocimiento de firmas y rúbricas, suscrito bajo las siguientes cláusulas:
+
+PRIMERA.- (DE LAS PARTES)
+Intervienen en el presente contrato:
+
+1.1. EL/LA PROPIETARIO(A):
+Nombre: {propietario_nombre}
+C.I.: {propietario_ci}
+Domicilio: {propietario_domicilio}
+(En adelante denominado(a) simplemente como "EL PROPIETARIO").
+
+1.2. EL/LA ANTICRESISTA:
+Nombre: {anticresista_nombre}
+C.I.: {anticresista_ci}
+Domicilio: {anticresista_domicilio}
+(En adelante denominado(a) simplemente como "EL ANTICRESISTA").
+
+Ambas partes, mayores de edad y hábiles por ley, declaran su plena capacidad para contratar y obligarse.
+
+SEGUNDA.- (ANTECEDENTES, DERECHO PROPIETARIO)
+EL PROPIETARIO declara ser legítimo dueño y poseedor de un inmueble ubicado en:
+Dirección: {inmueble_direccion}
+Superficie: {inmueble_superficie} m2
+Ciudad: {ciudad}
+
+Dicho inmueble se encuentra libre de gravámenes y cargas, lo cual EL PROPIETARIO garantiza.
+
+TERCERA.- (OBJETO)
+Por el presente contrato, EL PROPIETARIO, por su libre y espontánea voluntad, cede y da en calidad de ANTICRÉTICO el inmueble mencionado en la cláusula anterior, en favor de EL ANTICRESISTA.
+
+CUARTA.- (MONTO Y MONEDA)
+El monto del presente contrato de anticrético es de $us. {monto} (Son {monto_literal} 00/100 Dólares Estadounidenses), suma de dinero que EL PROPIETARIO declara haber recibido a su entera satisfacción en moneda de curso legal y corriente al momento de la firma del presente documento.
+
+QUINTA.- (PLAZO)
+El plazo de duración del presente contrato será de {meses} meses, computables a partir de la fecha {fecha}. Dicho plazo podrá ser renovado por acuerdo expreso de ambas partes.
+
+A la finalización del plazo, EL PROPIETARIO deberá devolver el monto total del anticrético a EL ANTICRESISTA, y este último deberá restituir el inmueble en las mismas condiciones en que lo recibió, salvo el desgaste natural por el uso.
+
+SEXTA.- (ESTADO Y GASTOS)
+EL ANTICRESISTA declara recibir el inmueble en perfectas condiciones de habitabilidad. Los gastos por servicios básicos (agua, luz, gas) correrán por cuenta de EL ANTICRESISTA durante la vigencia del contrato. Los impuestos de propiedad correrán por cuenta de EL PROPIETARIO.
+
+SÉPTIMA.- (PROHIBICIONES)
+Queda expresamente prohibido a EL ANTICRESISTA subalquilar, transferir, ceder o dar el inmueble a terceros, total o parcialmente. Tampoco podrá realizar modificaciones estructurales en el inmueble sin autorización escrita de EL PROPIETARIO.
+
+OCTAVA.- (INTERMEDIACIÓN)
+Ambas partes reconocen la intermediación del/la Sr(a). {agente_nombre} con C.I. {agente_ci}, en su calidad de Agente Inmobiliario Asociado, por cuyos servicios y gestiones se ha logrado la celebración del presente contrato.
+
+NOVENA.- (ACEPTACIÓN)
+Nosotros, {propietario_nombre} como PROPIETARIO y {anticresista_nombre} como ANTICRESISTA, declaramos nuestra plena conformidad con todas las cláusulas precedentes, en fe de lo cual firmamos al pie del presente documento en la ciudad de {ciudad} a los {fecha}.
+
+
+_______________________________
+{propietario_nombre}
+C.I. {propietario_ci}
+PROPIETARIO
+
+
+_______________________________
+{anticresista_nombre}
+C.I. {anticresista_ci}
+ANTICRESISTA
+
+
+_______________________________
+{agente_nombre}
+C.I. {agente_ci}
+AGENTE (INTERMEDIARIO)
