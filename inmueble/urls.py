@@ -53,4 +53,6 @@ urlpatterns = [
     path('anuncio/<int:inmueble_id>/', views.obtener_anuncio_por_inmueble, name='obtener_anuncio_por_inmueble'),
     path('todos-mis-inmuebles', views.todos_mis_inmuebles, name='todos_mis_inmuebles'),
 
+    path('busqueda/natural/', views.BusquedaNaturalView.as_view(), name='busqueda_nlp'),
+
 ]
