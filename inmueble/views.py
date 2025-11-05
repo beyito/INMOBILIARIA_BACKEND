@@ -725,24 +725,7 @@ def todos_mis_inmuebles(request):
     })
 
 
-# @api_view(['GET'])
-# @requiere_permiso("Inmueble", "leer")
-# def resumen_mis_inmuebles(request):
-#     """
-#     Devuelve contadores para armar las pestañas: pendientes, aprobados, rechazados, publicados, todos.
-#     """
-#     base = InmuebleModel.objects.filter(agente=request.user, is_active=True)
-#     agg = base.aggregate(
-#         pendientes=Count('id', filter=Q(estado='pendiente')),
-#         aprobados=Count('id', filter=Q(estado='aprobado')),
-#         rechazados=Count('id', filter=Q(estado='rechazado')),
-#         publicados=Count('id', filter=Q(estado='aprobado', anuncio__is_active=True, anuncio__estado='disponible')),
-#         todos=Count('id'),
-#     )
-#     return Response({
-#         "status": 1, "error": 0, "message": "RESUMEN MIS INMUEBLES", "values": agg
-#     })
-# Resumen de mis inmuebles (agente)
+
 @api_view(['GET'])
 @requiere_permiso("Inmueble", "leer")
 def resumen_mis_inmuebles(request):
@@ -1268,3 +1251,88 @@ def admin_obtener_anuncio(request, anuncio_id):
         "message": "DETALLE DEL ANUNCIO",
         "values": {"anuncio": serializer.data}
     })
+
+from .nlp_utils import parse_natural_query 
+from rest_framework.views import APIView 
+
+class BusquedaNaturalView(APIView):
+    # Ajusta los permisos si es una API pública o solo para agentes
+    # permission_classes = [IsAuthenticated] 
+    
+    def get(self, request):
+        query_text = request.query_params.get('q', '').strip()
+        
+        # 1. Lógica por defecto si no hay búsqueda
+        if not query_text:
+            qs = AnuncioModel.objects.filter(is_active=True, estado='disponible').select_related('inmueble')
+            serializer = AnuncioSerializer(qs[:20], many=True)
+            return Response({
+                "status": 1, 
+                "error": 0, 
+                "message": "LISTADO DE ANUNCIOS POR DEFECTO",
+                "values": {"anuncios": serializer.data, "count": qs.count()}
+            }, status=200)
+
+        # 2. Traducir la consulta natural a filtros estructurados (Llama a tu función que ya funciona)
+        filters = parse_natural_query(query_text)
+        
+        # 3. Comprobación de filtros válidos (Si la IA no devolvió nada)
+        # Verifica si hay algún valor útil (no vacío, no cero, y no solo la lista de características vacía)
+        if not filters or not any(v for k, v in filters.items() if v and k not in ['caracteristicas_clave', 'precio_minimo', 'precio_maximo', 'dormitorios_min'] or (isinstance(v, (int, float)) and v > 0) or (k == 'caracteristicas_clave' and v)):
+             return Response({"count": 0, "anuncios": [], "detail": "No se pudieron extraer filtros válidos de la consulta."}, status=422)
+
+        # 4. Construir la consulta Q (Query Object) para el modelo Inmueble
+        q_objects = Q()
+        
+        # --- FILTROS ---
+        
+        # Tipo de Propiedad (tipo_inmueble__nombre)
+        if filters.get('tipo_propiedad'):
+            q_objects &= Q(inmueble__tipo_inmueble__nombre__iexact=filters['tipo_propiedad'])
+            
+        # Tipo de Operación
+        if filters.get('tipo_operacion'):
+             q_objects &= Q(inmueble__tipo_operacion__iexact=filters['tipo_operacion'])
+        
+        # Ubicación (ciudad o zona) - (OR lógico)
+        ubicacion = filters.get('ciudad') or filters.get('zona')
+        if ubicacion:
+            q_objects &= (Q(inmueble__ciudad__icontains=ubicacion) | Q(inmueble__zona__icontains=ubicacion))
+
+        # Precio Mínimo / Máximo / Dormitorios Mínimo
+        if filters.get('precio_minimo') and filters['precio_minimo'] > 0:
+            q_objects &= Q(inmueble__precio__gte=filters['precio_minimo'])
+        if filters.get('precio_maximo') and filters['precio_maximo'] > 0:
+            q_objects &= Q(inmueble__precio__lte=filters['precio_maximo'])
+        if filters.get('dormitorios_min') and filters['dormitorios_min'] > 0:
+            q_objects &= Q(inmueble__dormitorios__gte=filters['dormitorios_min'])
+
+        # Filtro de Características Clave (en la descripción)
+        caracteristicas = filters.get('caracteristicas_clave')
+        if caracteristicas and isinstance(caracteristicas, list):
+            desc_q = Q()
+            for key in caracteristicas:
+                desc_q |= Q(inmueble__descripcion__icontains=key.strip())
+            if desc_q:
+                q_objects &= desc_q
+        
+        # 5. Ejecutar la consulta en la base de datos
+        resultados_anuncios = AnuncioModel.objects.filter(
+            q_objects, 
+            is_active=True, 
+            estado='disponible' 
+        ).select_related('inmueble').prefetch_related('inmueble__fotos')
+        
+        # 6. Serializar y devolver los resultados
+        serializer = AnuncioSerializer(resultados_anuncios, many=True)
+        
+        return Response({
+            "status": 1, 
+            "error": 0, 
+            "message": "LISTADO DE ANUNCIOS FILTRADO POR NLP",
+            "values": {
+                 "anuncios": serializer.data,
+                 "count": resultados_anuncios.count(),
+                 "filtros_nlp": filters
+            }
+        }, status=200)
