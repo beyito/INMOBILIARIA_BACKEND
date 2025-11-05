@@ -1230,6 +1230,29 @@ def admin_inmuebles_sin_anuncio(request):
     })
 
 @api_view(['GET'])
+@requiere_permiso("Anuncio", "crear")
+def admin_inmuebles_sin_anuncio_tipo_operacion(request):
+    """
+    Inmuebles aprobados que NO tienen anuncio activo
+    Perfecto para crear nuevos anuncios
+    """
+    inmuebles = InmuebleModel.objects.filter(
+        estado="aprobado",
+        tipo_operacion=request.data.get('tipo_operacion'),
+        is_active=True
+    ).exclude(
+        Q(anuncio__is_active=True) | Q(anuncio__isnull=False)
+    ).select_related('agente', 'tipo_inmueble').prefetch_related('fotos')
+
+    serializer = InmuebleSerializer(inmuebles, many=True)
+    return Response({
+        "status": 1,
+        "error": 0,
+        "message": "INMUEBLES APROBADOS SIN ANUNCIO",
+        "values": {"inmuebles": serializer.data}
+    })
+
+@api_view(['GET'])
 @requiere_permiso("Anuncio", "leer")
 def admin_obtener_anuncio(request, anuncio_id):
     """Obtiene un anuncio específico con información completa"""
