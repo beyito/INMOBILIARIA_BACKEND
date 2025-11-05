@@ -1229,7 +1229,7 @@ def admin_inmuebles_sin_anuncio(request):
         "values": {"inmuebles": serializer.data}
     })
 
-@api_view(['GET'])
+@api_view(['POST'])
 @requiere_permiso("Anuncio", "crear")
 def admin_inmuebles_sin_anuncio_tipo_operacion(request):
     """
