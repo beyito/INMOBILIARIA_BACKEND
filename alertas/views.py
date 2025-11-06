@@ -221,6 +221,7 @@ def mis_alertas(request):
         )
     )
 
+
     # 3. FILTRADO (El cliente solo quiere la lista completa)
     # >>> Ignoramos el parámetro de filtro para devolver siempre el QuerySet completo (qs) <<<
 
