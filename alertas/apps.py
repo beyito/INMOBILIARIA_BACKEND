@@ -1,5 +1,3 @@
-# alerta/apps.py
-
 from django.apps import AppConfig
 
 class AlertaConfig(AppConfig):
@@ -7,5 +5,11 @@ class AlertaConfig(AppConfig):
     name = 'alertas'
 
     def ready(self):
-        # Cargar el archivo de señales al iniciar la aplicación
-        import alertas.signals # Asume que tu archivo de señales se llama signals.py
+        # Importación diferida para evitar problemas de importación circular
+        # Solo importar señales cuando Django esté completamente cargado
+        try:
+            import alertas.signals
+        except ImportError as e:
+            # Si hay un error de importación, lo ignoramos temporalmente para las migraciones
+            print(f"⚠️ No se pudieron cargar las señales: {e}")
+            pass
