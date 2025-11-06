@@ -1222,7 +1222,7 @@ class ContratoAlquilerView(APIView):
 
             contrato.archivo_pdf = f"contratos/{pdf_filename}"
             contrato.save()
-
+            pdf_url_absoluta = request.build_absolute_uri(contrato.archivo_pdf.url)
             # 7️⃣ Respuesta final
             return Response(
                 {
@@ -1232,7 +1232,7 @@ class ContratoAlquilerView(APIView):
                     "values": {
                         "contrato_id": contrato.id,
                         "inmueble_id": inmueble.id,
-                        "pdf_url": f"/contratos/{pdf_filename}",
+                        "pdf_url": pdf_url_absoluta,
                         "anuncio_actualizado": bool(anuncio),
                     },
                 }
