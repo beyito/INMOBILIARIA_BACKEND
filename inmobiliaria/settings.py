@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'inmueble',
     'contacto',
     'desempeno',
+    'alertas',
 ]
 
 MIDDLEWARE = [
@@ -59,7 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'inmobiliaria.middleware.JsonErrorMiddleware'
+    #'inmobiliaria.middleware.JsonErrorMiddleware'
 ]
 
 ROOT_URLCONF = 'inmobiliaria.urls'
@@ -101,21 +102,18 @@ CHANNEL_LAYERS = {
 #         'PORT': '5432',
 #     }
 # }
-
- 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', cast=int),
-        # 'OPTIONS': {
-        #     'sslmode': 'require',  # Deshabilita el uso de SSL
-        # },
-    }    
-} 
+     'default': {
+         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+         'NAME': 'inmobiliaria',     # nombre de tu base de datos
+         'USER': 'postgres',
+         'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
+         'HOST': 'localhost',
+         'PORT': '5432',
+     }
+ }
+ 
+
 
 
 # DATABASES = {
@@ -189,13 +187,19 @@ REST_FRAMEWORK = {
 #Email Settings
 # settings.py
 
+# settings.py
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-EMAIL_HOST_USER = "7bee7fa1aa4c21"
-EMAIL_HOST_PASSWORD = "de7da4308fe225"
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = "noreply@tuapp.com"
+EMAIL_USE_TLS =True
+EMAIL_HOST_USER = "eliteproperties453@gmail.com"            # tu cuenta
+EMAIL_HOST_PASSWORD = "bxil ocdw iaus qhky"     # no tu clave normal
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# durante pruebas, fuerza el destinatario
+
+EMAIL_TIMEOUT = 30
 
 #pip freeze > requirements.txt PARA GENERAR LISTA DE REQUIRIMIENTOS
 #pip install -r requirements.txt PARA INSTALAR LOS REQUIRIMIENTOS

@@ -826,6 +826,8 @@ class ContratoAlquilerView(APIView):
 
             # 2️⃣ Crear contrato
             creador = request.user if request.user.is_authenticated else None
+            fecha_inicio_str = data.get('fecha_inicio', None)
+            fecha_fin_str = data.get('fecha_fin', None)
 
             contrato = Contrato.objects.create(
                 agente=agente,
@@ -842,6 +844,8 @@ class ContratoAlquilerView(APIView):
                 parte_contratada_domicilio=data.get('arrendatario_domicilio', ''),
                 monto=data.get('monto_alquiler', 0),
                 vigencia_meses=data.get('vigencia_meses', 0),
+                fecha_inicio=fecha_inicio_str, # Poblar el campo de la tabla
+                fecha_fin=fecha_fin_str,      # Poblar el campo de la tabla
                 detalles_adicionales={
                     'monto_garantia': data.get('monto_garantia', ''),
                     'fecha_inicio': data.get('fecha_inicio', ''),
