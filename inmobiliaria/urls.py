@@ -28,5 +28,6 @@ urlpatterns = [
     path('cita/'    , include('cita.urls')),
     path('api/desempeno/', include('desempeno.urls')),
     path('contrato/', include('contrato.urls')),
+    path('reportes/', include('reportes.urls')),
 ]
 urlpatterns += static(settings.CONTRATOS_URL, document_root=settings.CONTRATOS_ROOT)

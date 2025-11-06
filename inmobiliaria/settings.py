@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'inmueble',
     'contacto',
     'desempeno',
+    'reportes',
 ]
 
 MIDDLEWARE = [

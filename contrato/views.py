@@ -24,6 +24,7 @@ from reportlab.lib.units import cm
 from usuario.models import Usuario
 from inmueble.models import InmuebleModel as Inmueble
 from inmueble.models import InmuebleModel
+from inmueble.models import AnuncioModel
 from contrato.models import Contrato
 from contrato.serializers import ContratoSerializer
 from inmobiliaria.permissions import (
@@ -300,7 +301,7 @@ def detalle_comisiones_agente(request, agente_id):
 def crear_contrato_anticretico(request):
     """
     Crea un nuevo contrato de anticrético (Dueño-Cliente).
-    YA NO GENERA EL PDF, solo crea el registro.
+    AHORA TAMBIÉN ACTUALIZA EL ANUNCIO.
     """
     try:
         data = request.data
@@ -315,19 +316,12 @@ def crear_contrato_anticretico(request):
             propietario = inmueble.cliente
 
             if not propietario:
-                return Response(
-                    {
-                        "error": f"El inmueble (ID: {inmueble.id}) no tiene un 'Cliente' (Dueño) asignado. Edita el inmueble y asígnale uno."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"error": f"El inmueble (ID: {inmueble.id}) no tiene un 'Cliente' (Dueño) asignado."}, status=status.HTTP_400_BAD_REQUEST)
 
             if inmueble.tipo_operacion != "anticretico":
                 return Response(
-                    {
-                        "error": f"El inmueble '{inmueble.titulo}' (ID: {inmueble.id}) está listado para '{inmueble.tipo_operacion}', no para 'anticretico'."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"error": f"El inmueble '{inmueble.titulo}' (ID: {inmueble.id}) no es para 'anticretico'."}, 
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
         except InmuebleModel.DoesNotExist:
@@ -343,24 +337,26 @@ def crear_contrato_anticretico(request):
 
         # 2. Preparar los datos para guardar en el modelo Contrato
         datos_contrato = {
-            "agente": agente.id,
-            "inmueble": inmueble.id,
-            "tipo_contrato": "anticretico",
-            "estado": "pendiente",
-            "ciudad": data.get("ciudad"),
-            "fecha_contrato": data.get("fecha_contrato"),
-            "parte_contratante_nombre": propietario.nombre,
-            "parte_contratante_ci": propietario.ci,
-            "parte_contratante_domicilio": propietario.ubicacion,
-            "parte_contratada_nombre": data.get("cliente_nombre"),
-            "parte_contratada_ci": data.get("cliente_ci"),
-            "parte_contratada_domicilio": data.get("cliente_domicilio"),
-            "monto": data.get("monto"),
-            "comision_porcentaje": data.get("comision_porcentaje"),
-            "vigencia_meses": data.get("vigencia_meses"),
-            "creado_por": (
-                request.user.id if request.user.is_authenticated else agente.id
-            ),
+            'agente': agente.id,
+            'inmueble': inmueble.id,
+            'tipo_contrato': 'anticretico',
+            'estado': 'pendiente', # Se crea como pendiente
+            'ciudad': data.get('ciudad'),
+            'fecha_contrato': data.get('fecha_contrato'),
+            
+            'parte_contratante_nombre': propietario.nombre, 
+            'parte_contratante_ci': propietario.ci,
+            'parte_contratante_domicilio': propietario.ubicacion,
+            
+            'parte_contratada_nombre': data.get('cliente_nombre'),
+            'parte_contratada_ci': data.get('cliente_ci'),
+            'parte_contratada_domicilio': data.get('cliente_domicilio'),
+            
+            'monto': data.get('monto'),
+            'comision_porcentaje': data.get('comision_porcentaje'),
+            'vigencia_meses': data.get('vigencia_meses'),
+            
+            'creado_por': request.user.id if request.user.is_authenticated else agente.id
         }
 
         # 3. Validar y Guardar (Paso Inicial)
@@ -368,12 +364,25 @@ def crear_contrato_anticretico(request):
             data=datos_contrato, context={"request": request}
         )
         if serializer.is_valid():
-            # Guardamos el contrato en la BD
-            serializer.save()
+            contrato_guardado = serializer.save() # Guardamos el contrato
 
-            # --- ❌ BLOQUE DE PDF (WEASYPRINT) ELIMINADO ---
-
-            # Devolver los datos del contrato
+            # --- ⬇️ NUEVA LÓGICA PARA ACTUALIZAR EL ANUNCIO ⬇️ ---
+            try:
+                # getattr(inmueble, 'anuncio', None) busca 'inmueble.anuncio'
+                # y si no existe, devuelve None (sin crashear).
+                anuncio = getattr(inmueble, 'anuncio', None)
+                if anuncio:
+                    anuncio.estado = "anticretico" # Marcamos el anuncio como finalizado
+                    anuncio.is_active = False   # Lo desactivamos (quita de "Publicados")
+                    anuncio.save()
+                    print(f"✅ Anuncio {anuncio.id} actualizado a 'anticretico' e inactivado.")
+                else:
+                    print(f"⚠️ No se encontró anuncio para el inmueble {inmueble.id}. No se actualizó.")
+            except Exception as e_anuncio:
+                # Si esto falla, no rompemos la creación del contrato
+                print(f"❌ Error al actualizar el anuncio: {str(e_anuncio)}")
+            # --- ⬆️ FIN DE LA NUEVA LÓGICA ⬆️ ---
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -579,12 +588,37 @@ def finalizar_contrato(request, contrato_id):
             {"error": "Contrato no encontrado"}, status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        return Response(
-            {"error": f"Error inesperado: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+# @requiere_permiso("Contrato", "leer")
+def listar_contratos_anticretico(request):
+    """
+    Devuelve una lista de todos los contratos de anticrético
+    para usarlos en un selector en el frontend.
+    """
+    try:
+        # Filtramos solo por anticrético y ordenamos del más nuevo al más viejo
+        contratos = Contrato.objects.filter(
+            tipo_contrato='anticretico'
+        ).select_related('inmueble').order_by('-fecha_creacion')
+        
+        # Usamos el serializer, pero solo devolvemos campos clave
+        # para que la lista no sea tan pesada.
+        # (Si quieres la info completa, usa: ContratoSerializer(contratos, many=True))
+        data = [{
+            'id': c.id,
+            'propietario': c.parte_contratante_nombre,
+            'anticresista': c.parte_contratada_nombre,
+            'inmueble': c.inmueble.direccion if c.inmueble else 'N/A',
+            'estado': c.estado
+        } for c in contratos]
 
-
+        return Response(data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({"error": f"Error inesperado: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 class ContratoServiciosAnticreticoView(APIView):
     def post(self, request):
         data = request.data
@@ -1509,12 +1543,11 @@ def detalle_contrato_pdf(request, contrato_id):
             status=404,
         )
     except Exception as e:
-        return Response(
-            {
-                "status": 0,
-                "error": 1,
-                "message": f"Error al obtener detalle del contrato: {str(e)}",
-                "values": {},
-            },
-            status=500,
-        )
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al obtener detalle del contrato: {str(e)}",
+            "values": {}
+        }, status=500)
+
+

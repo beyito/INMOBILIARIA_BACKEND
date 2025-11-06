@@ -10,6 +10,7 @@ urlpatterns = [
     path('detalle/<int:contrato_id>/',views.detalle_contrato, name='detalle_contrato'),
     path('aprobar/<int:contrato_id>/',views.aprobar_contrato,name='aprobar_contrato'),
     path('finalizar/<int:contrato_id>/',views.finalizar_contrato,name='finalizar_contrato'),
+    path('listar-anticretico/',views.listar_contratos_anticretico, name='listar_contratos_anticretico'),
     path("generarContratoDeServiciosAnticreticoPdf", views.ContratoServiciosAnticreticoView.as_view(), name="generarContratoDeServiciosAnticreticoPdf"),
     path('generarContratoAlquilerPdf', views.ContratoAlquilerView.as_view(), name='generarContratoAlquilerPdf'),
     path('ver/<int:contrato_id>', views.ContratoViewPdf.as_view(), name='ver-contrato-pdf'),
