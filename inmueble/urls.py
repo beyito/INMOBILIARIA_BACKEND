@@ -41,6 +41,7 @@ urlpatterns = [
     path('anuncios/crear/<int:inmueble_id>', views.admin_crear_anuncio, name='admin_crear_anuncio'),
     path('anuncios/<int:anuncio_id>', views.admin_actualizar_anuncio, name='admin_actualizar_anuncio'),
     path('anuncios/no_publicados', views.admin_inmuebles_sin_anuncio, name='admin_inmuebles_sin_anuncio'),
+    path('anuncios/no_publicados_tipo_operacion', views.admin_inmuebles_sin_anuncio_tipo_operacion, name='admin_inmuebles_sin_anuncio_tipo_operacion'),
     path('anuncios/detalle/<int:anuncio_id>', views.admin_obtener_anuncio, name='admin_obtener_anuncio'), 
 
     # GESTION DE ANUNCIOS
@@ -52,5 +53,7 @@ urlpatterns = [
     path('anuncio/estado', views.estado_anuncio_por_inmueble, name='estado_anuncio_por_inmueble'),
     path('anuncio/<int:inmueble_id>/', views.obtener_anuncio_por_inmueble, name='obtener_anuncio_por_inmueble'),
     path('todos-mis-inmuebles', views.todos_mis_inmuebles, name='todos_mis_inmuebles'),
+
+    path('busqueda/natural/', views.BusquedaNaturalView.as_view(), name='busqueda_nlp'),
 
 ]

@@ -17,6 +17,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,4 +29,6 @@ urlpatterns = [
     path('api/desempeno/', include('desempeno.urls')),
     path('contrato/', include('contrato.urls')),
     path('alertas/', include('alertas.urls')),  # para CU30
+    path('reportes/', include('reportes.urls')),
 ]
+urlpatterns += static(settings.CONTRATOS_URL, document_root=settings.CONTRATOS_ROOT)
