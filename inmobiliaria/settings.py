@@ -191,6 +191,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
     "http://localhost:5173",
     "https://inmueble-front.vercel.app",
+    "https://inmueble-front-production.up.railway.app"
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
