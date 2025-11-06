@@ -28,7 +28,7 @@ urlpatterns = [
     path('cita/'    , include('cita.urls')),
     path('api/desempeno/', include('desempeno.urls')),
     path('contrato/', include('contrato.urls')),
-    path('alertas/', include('alertas.urls')),  # para CU30
+    # path('alertas/', include('alertas.urls')),  # para CU30
     path('reportes/', include('reportes.urls')),
 ]
 urlpatterns += static(settings.CONTRATOS_URL, document_root=settings.CONTRATOS_ROOT)
