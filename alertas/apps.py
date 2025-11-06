@@ -12,4 +12,4 @@ class AlertaConfig(AppConfig):
         except ImportError as e:
             # Si hay un error de importación, lo ignoramos temporalmente para las migraciones
             print(f"⚠️ No se pudieron cargar las señales: {e}")
-            pass
+            pass 
