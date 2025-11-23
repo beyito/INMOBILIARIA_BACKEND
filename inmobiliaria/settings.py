@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-=ho1+m-e7v&em6l97swgu32rk78+xv8o2z+4vz@f0s#kkfjqe1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', '10.0.2.2', 'localhost', '192.168.0.12']
+ALLOWED_HOSTS = ['*', '10.0.2.2', 'localhost', '192.168.0.10']
 # ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'usuario.Usuario'
@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'alertas',
     'reportes',
     'pago',
+    'ventas',
 ]
 
 MIDDLEWARE = [
@@ -97,28 +98,16 @@ CHANNEL_LAYERS = {
 
  #Database
 #https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'inmobiliaria',     # nombre de tu base de datos
-#         'USER': 'postgres',
-#         'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
 DATABASES = {
-      'default': {
-          'ENGINE': 'django.db.backends.postgresql_psycopg2',
-          'NAME': 'inmobiliaria',     # nombre de tu base de datos
-          'USER': 'postgres',
-          'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
-          'HOST': 'localhost',
-          'PORT': '5432',
-      }
-  }
- 
-
+    'default': {
+        'ENGINE': config("DB_ENGINE", default="django.db.backends.postgresql"),
+        'NAME': config("DB_NAME"),
+        'USER': config("DB_USER"),
+        'PASSWORD': config("DB_PASSWORD"),
+        'HOST': config("DB_HOST", default="localhost"),
+        'PORT': config("DB_PORT", default="5432"),
+    }
+}
 
 
 # DATABASES = {
@@ -209,6 +198,15 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 EMAIL_TIMEOUT = 30
 
 ALERTAS_AUTO_DELETE_INVALID_DEVICE = True # o False (por defecto)
+
+# Stripe Keys
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
+STRIPE_PUBLIC_KEY = config("STRIPE_PUBLIC_KEY", default="")
+FRONTEND_SUCCESS_URL = config("FRONTEND_SUCCESS_URL", default="http://localhost:3000/success")
+FRONTEND_CANCEL_URL = config("FRONTEND_CANCEL_URL", default="http://localhost:3000/cancel")
+
+STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
+
 
 #pip freeze > requirements.txt PARA GENERAR LISTA DE REQUIRIMIENTOS
 #pip install -r requirements.txt PARA INSTALAR LOS REQUIRIMIENTOS
