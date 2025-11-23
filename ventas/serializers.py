@@ -1,9 +1,10 @@
 # ventas/serializers.py
 from rest_framework import serializers
-from .models import VentaInmueble
+from .models import VentaInmueble, AlquilerInmueble
 from inmueble.models import InmuebleModel
 from usuario.serializers import UsuarioSerializer
-
+from inmueble.serializers import InmuebleSerializer
+from contrato.serializers import ContratoSerializer
 
 class InmuebleMiniSerializer(serializers.ModelSerializer):
     foto_portada = serializers.SerializerMethodField()
@@ -40,3 +41,26 @@ class VentaInmuebleSerializer(serializers.ModelSerializer):
             "transaccion_id",
             "fecha",
         ]
+
+class AlquilerInmuebleSerializer(serializers.ModelSerializer):
+    arrendatario_info = UsuarioSerializer(source='arrendatario', read_only=True)
+    inmueble_info = InmuebleSerializer(source='inmueble', read_only=True)
+    contrato_info = ContratoSerializer(source='contrato', read_only=True)
+
+    class Meta:
+        model = AlquilerInmueble
+        fields = [
+            'id',
+            'arrendatario',
+            'arrendatario_info',
+            'inmueble',
+            'inmueble_info',
+            'metodo_pago',
+            'monto_mensual',
+            'estado_pago',
+            'transaccion_id',
+            'contrato',
+            'contrato_info',
+            'fecha_registro',
+        ]
+        read_only_fields = ['id', 'fecha_registro']
