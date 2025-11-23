@@ -45,7 +45,7 @@ def parsear_fechas(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def dashboard_general(request):
     """
     GET /api/reportes/dashboard/
@@ -159,7 +159,7 @@ def dashboard_general(request):
                 'chats_con_mensajes_sin_leer': chats_activos,
             }
         }
-        
+        # print("DATA", data)
         return Response({
             "status": 1,
             "error": 0,
@@ -168,6 +168,7 @@ def dashboard_general(request):
         })
         
     except Exception as e:
+        # print("ERROR",e)
         return Response({
             "status": 0,
             "error": 1,
@@ -181,7 +182,7 @@ def dashboard_general(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_inmuebles(request):
     """
     GET /api/reportes/inmuebles/
@@ -319,7 +320,7 @@ def reporte_inmuebles(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_contratos(request):
     """
     GET /api/reportes/contratos/
@@ -479,7 +480,7 @@ def reporte_contratos(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_agentes(request):
     """
     GET /api/reportes/agentes/
@@ -615,7 +616,7 @@ def reporte_agentes(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_financiero(request):
     """
     GET /api/reportes/financiero/
@@ -757,7 +758,7 @@ def reporte_financiero(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_alertas(request):
     """
     GET /api/reportes/alertas/
@@ -876,7 +877,7 @@ def reporte_alertas(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_usuarios(request):
     """
     GET /api/reportes/usuarios/
@@ -987,7 +988,7 @@ def reporte_usuarios(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_anuncios(request):
     """
     GET /api/reportes/anuncios/
@@ -1122,7 +1123,7 @@ def reporte_anuncios(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_comunicacion(request):
     """
     GET /api/reportes/comunicacion/
@@ -1254,7 +1255,7 @@ def reporte_comunicacion(request):
 # ============================================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def reporte_comparativo(request):
     """
     GET /api/reportes/comparativo/
