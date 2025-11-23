@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'desempeno',
     'alertas',
     'reportes',
+    'pago',
     'ventas',
 ]
 
@@ -65,7 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'inmobiliaria.middleware.JsonErrorMiddleware'
+    #'inmobiliaria.middleware.JsonErrorMiddleware'
 ]
 
 ROOT_URLCONF = 'inmobiliaria.urls'

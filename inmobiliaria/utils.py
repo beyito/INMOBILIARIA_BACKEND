@@ -15,7 +15,8 @@ def initialize_firebase():
             render_secrets_path = '/etc/secrets/firebase_key.json'
             
             # Opción 2: Ruta local de desarrollo
-            local_secrets_path = os.path.join(settings.BASE_DIR, 'secrets', 'firebase_key.json')
+            Local_secrets_path = os.path.join(settings.BASE_DIR, 'secrets', 'firebase_key.json')
+            #local_secrets_path = os.path.join(settings.BASE_DIR, 'inmobiliaria', 'secrets', 'firebase_key.json')
             
             # Opción 3: Desde variable de entorno (backup)
             firebase_config_json = os.environ.get('FIREBASE_CONFIG')

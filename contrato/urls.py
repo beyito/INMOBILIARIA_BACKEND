@@ -16,6 +16,7 @@ urlpatterns = [
     path('ver/<int:contrato_id>', views.ContratoViewPdf.as_view(), name='ver-contrato-pdf'),
     path('listar', views.listar_contratos, name='listar-contratos'),
    path('detalle-pdf/<int:contrato_id>', views.detalle_contrato_pdf, name='detalle-contrato-pdf'),
+   path('mis-contratos/', views.listar_mis_contratos_cliente, name='listar_mis_contratos_cliente'),
     
 
 ]

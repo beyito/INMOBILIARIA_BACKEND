@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 
-from usuario.models import Usuario
+from usuario.models import Usuario,Grupo
 from inmueble.models import InmuebleModel as Inmueble
 from inmueble.models import InmuebleModel
 from inmueble.models import AnuncioModel
@@ -295,6 +295,44 @@ def detalle_comisiones_agente(request, agente_id):
             status=500,
         )
 
+# contrato/views.py (Función auxiliar)
+
+from usuario.models import Usuario, Grupo # Asegúrate de importar Grupo aquí
+
+
+def _get_or_create_cliente_only_link(nombre: str, ci: str, domicilio: str, grupo_nombre: str = 'cliente'):
+    """
+    Busca un Usuario por CI para vincular al contrato. 
+    1. Si existe, lo retorna (sin actualizar datos). 
+    2. Si no existe, lo crea y lo asigna al rol 'cliente'.
+    """
+    if not ci: return None
+    
+    # 1. Buscar el grupo 'cliente'
+    try:
+        grupo_cliente = Grupo.objects.get(nombre__iexact=grupo_nombre)
+    except Grupo.DoesNotExist:
+        raise Exception(f"El grupo '{grupo_nombre}' es requerido.")
+
+    # 2. Buscar usuario existente por CI
+    cliente_usuario = Usuario.objects.filter(ci=ci).first()
+
+    if cliente_usuario:
+        # 🚨 REGLA CLAVE: Si ya existe, NO HACEMOS NADA más que usar su ID.
+        # Esto protege los datos de Agentes/Admins de ser sobrescritos.
+        return cliente_usuario
+        
+    else:
+        # 3. Si no existe, crear la cuenta como 'Cliente'
+        usuario_creado = Usuario.objects.create_user(
+            username=f"ci_{ci}",
+            password=ci,  # Contraseña temporal
+            nombre=nombre,
+            ci=ci,
+            grupo=grupo_cliente,
+            ubicacion=domicilio # Usar domicilio ingresado
+        )
+        return usuario_creado
 
 @api_view(["POST"])
 # @requiere_permiso("Contrato", "crear")
@@ -314,7 +352,25 @@ def crear_contrato_anticretico(request):
             inmueble = InmuebleModel.objects.get(id=inmueble_id)
             agente = Usuario.objects.get(id=agente_id)
             propietario = inmueble.cliente
+            fecha_contrato_str = data.get('fecha_contrato')
+            vigencia_meses = data.get('vigencia_meses')
 
+            if not fecha_contrato_str or not vigencia_meses:
+                 return Response({"error": "Fecha de contrato y vigencia son obligatorios."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 2. CÁLCULO CRUCIAL DE LAS FECHAS
+            
+            # 2.1. Convertir fecha de firma a objeto date
+            fecha_firma = datetime.strptime(fecha_contrato_str, "%Y-%m-%d").date()
+            
+            # 2.2. La fecha de inicio del contrato de anticrético es la misma que la fecha de firma.
+            fecha_inicio_calculada = fecha_firma
+            
+            # 2.3. Calcular la fecha de fin (Añadir vigencia_meses a la fecha de inicio)
+            # Usamos relativedelta para manejar cruces de mes de forma segura
+            fecha_fin_calculada = fecha_inicio_calculada + relativedelta(months=int(vigencia_meses))
+            
+            # --- El resto de las verificaciones iniciales se mantienen ---
             if not propietario:
                 return Response({"error": f"El inmueble (ID: {inmueble.id}) no tiene un 'Cliente' (Dueño) asignado."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -323,7 +379,16 @@ def crear_contrato_anticretico(request):
                     {"error": f"El inmueble '{inmueble.titulo}' (ID: {inmueble.id}) no es para 'anticretico'."}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            cliente_ci_ingresado = data.get('parte_contratada_ci', data.get('cliente_ci')) 
+            cliente_nombre_ingresado = data.get('parte_contratada_nombre', data.get('cliente_nombre'))
+            cliente_domicilio_ingresado = data.get('parte_contratada_domicilio', data.get('cliente_domicilio'))
 
+            id_cliente_obj = _get_or_create_cliente_only_link(
+            nombre=cliente_nombre_ingresado, 
+            ci=cliente_ci_ingresado, 
+            domicilio=cliente_domicilio_ingresado, 
+            grupo_nombre='cliente'
+        )
         except InmuebleModel.DoesNotExist:
             return Response(
                 {"error": f"Inmueble con id={inmueble_id} no encontrado."},
@@ -342,19 +407,29 @@ def crear_contrato_anticretico(request):
             'tipo_contrato': 'anticretico',
             'estado': 'pendiente', # Se crea como pendiente
             'ciudad': data.get('ciudad'),
-            'fecha_contrato': data.get('fecha_contrato'),
+           # 'fecha_contrato': data.get('fecha_contrato'),
+            'fecha_contrato': fecha_firma,
+            'fecha_inicio': fecha_inicio_calculada,
+            'fecha_fin': fecha_fin_calculada,
             
             'parte_contratante_nombre': propietario.nombre, 
             'parte_contratante_ci': propietario.ci,
             'parte_contratante_domicilio': propietario.ubicacion,
             
-            'parte_contratada_nombre': data.get('cliente_nombre'),
-            'parte_contratada_ci': data.get('cliente_ci'),
-            'parte_contratada_domicilio': data.get('cliente_domicilio'),
+            #'parte_contratada_nombre': data.get('cliente_nombre'),
+            #'parte_contratada_ci': data.get('cliente_ci'),
+                #'parte_contratada_domicilio': data.get('cliente_domicilio'),
+            
+            'parte_contratada_nombre': id_cliente_obj.nombre, 
+            'parte_contratada_ci': id_cliente_obj.ci,
+            'parte_contratada_domicilio': id_cliente_obj.ubicacion, # Usar el domicilio del Usuario
+            
+            # 🚨 CLAVE CU32: ASIGNACIÓN DEL NUEVO FK
+            'id_cliente': id_cliente_obj.id,
             
             'monto': data.get('monto'),
             'comision_porcentaje': data.get('comision_porcentaje'),
-            'vigencia_meses': data.get('vigencia_meses'),
+            'vigencia_meses': vigencia_meses,
             
             'creado_por': request.user.id if request.user.is_authenticated else agente.id
         }
@@ -375,6 +450,7 @@ def crear_contrato_anticretico(request):
                     anuncio.estado = "anticretico" # Marcamos el anuncio como finalizado
                     anuncio.is_active = False   # Lo desactivamos (quita de "Publicados")
                     anuncio.save()
+                    
                     print(f"✅ Anuncio {anuncio.id} actualizado a 'anticretico' e inactivado.")
                 else:
                     print(f"⚠️ No se encontró anuncio para el inmueble {inmueble.id}. No se actualizó.")
@@ -1066,7 +1142,18 @@ class ContratoAlquilerView(APIView):
             creador = request.user if request.user.is_authenticated else None
             fecha_inicio_str = data.get('fecha_inicio', None)
             fecha_fin_str = data.get('fecha_fin', None)
-
+            arrendatario_ci = data.get("arrendatario_ci", "")
+            arrendatario_nombre = data.get("arrendatario_nombre", "")
+            arrendatario_domicilio = data.get("arrendatario_domicilio", "")
+            if not arrendatario_ci:
+                # El CI es requerido para la vinculación
+                return Response({"error": "El CI del Arrendatario es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+            id_cliente_obj = _get_or_create_cliente_only_link(
+                nombre=arrendatario_nombre, 
+                ci=arrendatario_ci, 
+                domicilio=arrendatario_domicilio, 
+                grupo_nombre='cliente'
+            )
             contrato = Contrato.objects.create(
                 agente=agente,
                 inmueble=inmueble,
@@ -1077,9 +1164,18 @@ class ContratoAlquilerView(APIView):
                 parte_contratante_nombre=arrendador.nombre,
                 parte_contratante_ci=arrendador.ci or "",
                 parte_contratante_domicilio=data.get("arrendador_domicilio", ""),
-                parte_contratada_nombre=data.get("arrendatario_nombre", ""),
-                parte_contratada_ci=data.get("arrendatario_ci", ""),
-                parte_contratada_domicilio=data.get("arrendatario_domicilio", ""),
+
+                #parte_contratada_nombre=data.get("arrendatario_nombre", ""),
+                #parte_contratada_ci=data.get("arrendatario_ci", ""),
+                #parte_contratada_domicilio=data.get("arrendatario_domicilio", ""),
+
+                parte_contratada_nombre=id_cliente_obj.nombre,
+                parte_contratada_ci=id_cliente_obj.ci,
+                parte_contratada_domicilio=id_cliente_obj.ubicacion,
+                
+                # 🚨 CLAVE CU32: ASIGNACIÓN DEL NUEVO FK
+                id_cliente=id_cliente_obj.id, # Asignamos el ID del Usuario
+                
                 monto=data.get("monto_alquiler", 0),
                 vigencia_meses=data.get("vigencia_meses", 0),
                 fecha_inicio=fecha_inicio_str, # Poblar el campo de la tabla
@@ -1555,3 +1651,46 @@ def detalle_contrato_pdf(request, contrato_id):
         }, status=500)
 
 
+@api_view(["GET"])
+#   @permission_classes([IsAuthenticated])
+def listar_mis_contratos_cliente(request):
+    """
+    Lista los contratos donde el usuario logueado es el cliente (id_cliente).
+    """
+    if not request.user.is_authenticated:
+        return Response({"error": "No autenticado."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+    usuario_id = request.user.id
+    
+    try:
+        # 1. 🔍 FILTRADO CRUCIAL: Usamos 'id_cliente' para el FK
+        contratos = Contrato.objects.filter(
+            id_cliente=usuario_id, # <-- FILTRO POR EL CAMPO CORRECTO
+            tipo_contrato__in=['alquilers', 'anticretico'] 
+        ).select_related('agente', 'inmueble').order_by('-fecha_contrato')
+
+        # 2. Serialización manual para simplificar (o usa tu Serializer si lo prefieres)
+        data = []
+        for c in contratos:
+            data.append({
+                "id": c.id,
+                "tipo_contrato": c.get_tipo_contrato_display(),
+                "estado": c.estado,
+                "monto": float(c.monto or 0),
+                "id_cliente": c.id_cliente_id, # Enviamos el ID del cliente (aunque ya filtramos)
+                "fecha_inicio": c.fecha_inicio,
+                "fecha_fin": c.fecha_fin,
+                "inmueble_direccion": c.inmueble.direccion if c.inmueble else 'N/A',
+                # Añade todos los campos necesarios que el frontend requiera.
+            })
+            
+        return Response({
+            "status": 1,
+            "error": 0,
+            "message": "LISTADO DE CONTRATOS FILTRADO POR CLIENTE",
+            "values": {"contratos": data}, # Enviamos la lista bajo 'contratos'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        # Importar logger si lo usas
+        return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
