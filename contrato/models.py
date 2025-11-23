@@ -54,6 +54,13 @@ class Contrato(models.Model):
     vigencia_dias = models.IntegerField(blank=True, null=True)   # Para servicios
     fecha_inicio = models.DateField(blank=True, null=True)
     fecha_fin = models.DateField(blank=True, null=True)
+    id_cliente = models.ForeignKey(
+        Usuario, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='id_cliente_parte_contratante'
+    )
     
     # Información adicional específica por tipo
     detalles_adicionales = models.JSONField(default=dict, blank=True)  # Para datos específicos de cada tipo

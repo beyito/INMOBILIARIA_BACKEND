@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'desempeno',
     'alertas',
     'reportes',
+    'pago',
 ]
 
 MIDDLEWARE = [
@@ -64,7 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'inmobiliaria.middleware.JsonErrorMiddleware'
+    #'inmobiliaria.middleware.JsonErrorMiddleware'
 ]
 
 ROOT_URLCONF = 'inmobiliaria.urls'
@@ -106,6 +107,19 @@ CHANNEL_LAYERS = {
 #         'PORT': '5432',
 #     }
 # }
+DATABASES = {
+      'default': {
+          'ENGINE': 'django.db.backends.postgresql_psycopg2',
+          'NAME': 'inmobiliaria',     # nombre de tu base de datos
+          'USER': 'postgres',
+          'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
+          'HOST': 'localhost',
+          'PORT': '5432',
+      }
+  }
+ 
+
+
 
 # DATABASES = {
 #     'default': {
