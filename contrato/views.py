@@ -26,7 +26,7 @@ from inmueble.models import InmuebleModel as Inmueble
 from inmueble.models import InmuebleModel
 from inmueble.models import AnuncioModel
 from contrato.models import Contrato
-from contrato.serializers import ContratoSerializer
+from contrato.serializers import ContratoSerializer, ContratoAlquilerSerializer
 from inmobiliaria.permissions import (
     requiere_actualizacion,
     requiere_creacion,
@@ -1694,3 +1694,36 @@ def listar_mis_contratos_cliente(request):
     except Exception as e:
         # Importar logger si lo usas
         return Response({"error": f"Error interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(["GET"])
+# @requiere_permiso("contrato","leer")
+def listar_contratos_alquiler_cliente(request):
+    """
+    Lista todos los contratos de alquiler del cliente autenticado
+    """
+    try:
+        # Filtrar contratos donde el usuario es el cliente y el tipo es alquiler
+        contratos = Contrato.objects.filter(
+            id_cliente=request.user,
+            tipo_contrato='alquiler'
+        ).select_related('inmueble').order_by('-fecha_creacion')
+        
+        serializer = ContratoAlquilerSerializer(contratos, many=True)
+        
+        return Response({
+            "status": 1,
+            "error": 0, 
+            "message": "LISTADO DE CONTRATOS DE ALQUILER DEL CLIENTE",
+            "values": {
+                "contratos": serializer.data,
+                "count": contratos.count(),
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": f"Error al listar contratos: {str(e)}",
+            "values": {}
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

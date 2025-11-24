@@ -9,10 +9,13 @@ from .views import (
     # Flujo Admin/Manual
     registrar_pago_manual,
     gestionar_pago_manual,
-
+    estado_cuenta_contrato_alquiler,
     # Consultas
     ListarPagosPorContrato,
     ObtenerDetallePago,
+    simular_webhook_stripe,
+    verificar_estado_pago
+    
 )
 
 urlpatterns = [
@@ -37,4 +40,8 @@ urlpatterns = [
     # ------------------ RUTAS DE GESTIÓN (ADMIN EXCLUSIVO) ------------------
     # PATCH: Confirma o rechaza un pago manual pendiente
     path('gestion/<int:pago_id>/', gestionar_pago_manual, name='pago-gestionar-manual'),
+
+    path('contrato/alquiler/<int:contrato_id>/estado-cuenta/', estado_cuenta_contrato_alquiler, name='estado-cuenta-alquiler'),
+    path('verificar/<int:pago_id>', verificar_estado_pago, name='verificar-estado-pago'),
+    path('simular-webhook/<int:pago_id>/', simular_webhook_stripe, name='simular-webhook'),
 ]

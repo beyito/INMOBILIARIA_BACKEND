@@ -345,202 +345,202 @@ def comprobante_venta(request, pk):
 
 # ALQUILER
 
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-@requiere_permiso("alquileres", "crear")
-def crear_orden_alquiler_stripe(request):
-    try:
-        inmueble_id = request.data.get("inmueble_id")
-        inmueble = InmuebleModel.objects.filter(id=inmueble_id).first()
+# @api_view(["POST"])
+# @permission_classes([permissions.IsAuthenticated])
+# @requiere_permiso("alquileres", "crear")
+# def crear_orden_alquiler_stripe(request):
+#     try:
+#         inmueble_id = request.data.get("inmueble_id")
+#         inmueble = InmuebleModel.objects.filter(id=inmueble_id).first()
 
-        if not inmueble:
-            return Response({
-                "status": 0,
-                "error": 1,
-                "message": "INMUEBLE NO ENCONTRADO"
-            }, status=404)
+#         if not inmueble:
+#             return Response({
+#                 "status": 0,
+#                 "error": 1,
+#                 "message": "INMUEBLE NO ENCONTRADO"
+#             }, status=404)
 
-        # ⚠ Precio mensual del alquiler
-        monto = inmueble.precio  
+#         # ⚠ Precio mensual del alquiler
+#         monto = inmueble.precio  
 
-        # 1️⃣ Crear registro de ALQUILER (pendiente)
-        alquiler = AlquilerInmueble.objects.create(
-            arrendatario=request.user,
-            inmueble=inmueble,
-            monto_mensual=monto,
-            metodo_pago="stripe",
-            estado_pago="pendiente",
-        )
+#         # 1️⃣ Crear registro de ALQUILER (pendiente)
+#         alquiler = AlquilerInmueble.objects.create(
+#             arrendatario=request.user,
+#             inmueble=inmueble,
+#             monto_mensual=monto,
+#             metodo_pago="stripe",
+#             estado_pago="pendiente",
+#         )
 
-        # 2️⃣ Crear sesión Stripe
-        session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'bob',
-                    'product_data': {'name': f"Alquiler - {inmueble.titulo}"},
-                    'unit_amount': int(float(monto) * 100),
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url=f"{settings.FRONTEND_SUCCESS_URL}?alquiler_id={alquiler.id}",
-            cancel_url=settings.FRONTEND_CANCEL_URL,
-            customer_email=request.user.correo,
-            client_reference_id=str(alquiler.id),
-        )
+#         # 2️⃣ Crear sesión Stripe
+#         session = stripe.checkout.Session.create(
+#             payment_method_types=['card'],
+#             line_items=[{
+#                 'price_data': {
+#                     'currency': 'bob',
+#                     'product_data': {'name': f"Alquiler - {inmueble.titulo}"},
+#                     'unit_amount': int(float(monto) * 100),
+#                 },
+#                 'quantity': 1,
+#             }],
+#             mode='payment',
+#             success_url=f"{settings.FRONTEND_SUCCESS_URL}?alquiler_id={alquiler.id}",
+#             cancel_url=settings.FRONTEND_CANCEL_URL,
+#             customer_email=request.user.correo,
+#             client_reference_id=str(alquiler.id),
+#         )
 
-        alquiler.transaccion_id = session.id
-        alquiler.save()
+#         alquiler.transaccion_id = session.id
+#         alquiler.save()
 
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "ORDEN DE ALQUILER CREADA",
-            "values": {
-                "checkout_url": session.url,
-                "alquiler_id": alquiler.id
-            }
-        }, status=200)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "ORDEN DE ALQUILER CREADA",
+#             "values": {
+#                 "checkout_url": session.url,
+#                 "alquiler_id": alquiler.id
+#             }
+#         }, status=200)
 
-    except Exception as e:
-        return Response({
-            "status": 0,
-            "error": 1,
-            "message": "ERROR AL CREAR ORDEN",
-            "values": str(e)
-        }, status=500)
+#     except Exception as e:
+#         return Response({
+#             "status": 0,
+#             "error": 1,
+#             "message": "ERROR AL CREAR ORDEN",
+#             "values": str(e)
+#         }, status=500)
 
-@api_view(["POST"])
-def confirmar_pago_alquiler(request):
-    try:
-        session_id = request.data.get("session_id")
+# @api_view(["POST"])
+# def confirmar_pago_alquiler(request):
+#     try:
+#         session_id = request.data.get("session_id")
 
-        alquiler = AlquilerInmueble.objects.filter(transaccion_id=session_id).first()
-        if not alquiler:
-            return Response({
-                "status": 0,
-                "error": 1,
-                "message": "ALQUILER NO ENCONTRADO"
-            }, status=404)
+#         alquiler = AlquilerInmueble.objects.filter(transaccion_id=session_id).first()
+#         if not alquiler:
+#             return Response({
+#                 "status": 0,
+#                 "error": 1,
+#                 "message": "ALQUILER NO ENCONTRADO"
+#             }, status=404)
 
-        # Marcar pagado
-        alquiler.estado_pago = "pagado"
-        alquiler.save()
+#         # Marcar pagado
+#         alquiler.estado_pago = "pagado"
+#         alquiler.save()
 
-        # ⚠ Cambiar estado del anuncio a "alquilado"
-        anuncio = getattr(alquiler.inmueble, "anuncio", None)
-        if anuncio:
-            anuncio.estado = "alquilado"
-            anuncio.is_active = False
-            anuncio.save()
+#         # ⚠ Cambiar estado del anuncio a "alquilado"
+#         anuncio = getattr(alquiler.inmueble, "anuncio", None)
+#         if anuncio:
+#             anuncio.estado = "alquilado"
+#             anuncio.is_active = False
+#             anuncio.save()
 
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "ALQUILER PAGADO",
-            "values": AlquilerInmuebleSerializer(alquiler).data
-        }, status=200)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "ALQUILER PAGADO",
+#             "values": AlquilerInmuebleSerializer(alquiler).data
+#         }, status=200)
 
-    except Exception as e:
-        return Response({
-            "status": 0,
-            "error": 1,
-            "message": "ERROR AL CONFIRMAR PAGO",
-            "values": str(e)
-        }, status=500)
+#     except Exception as e:
+#         return Response({
+#             "status": 0,
+#             "error": 1,
+#             "message": "ERROR AL CONFIRMAR PAGO",
+#             "values": str(e)
+#         }, status=500)
 
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-@requiere_creacion("alquileres")
-def alquiler_efectivo(request):
-    try:
-        inmueble_id = request.data.get("inmueble_id")
-        inmueble = InmuebleModel.objects.filter(id=inmueble_id).first()
+# @api_view(["POST"])
+# @permission_classes([permissions.IsAuthenticated])
+# @requiere_creacion("alquileres")
+# def alquiler_efectivo(request):
+#     try:
+#         inmueble_id = request.data.get("inmueble_id")
+#         inmueble = InmuebleModel.objects.filter(id=inmueble_id).first()
 
-        if not inmueble:
-            return Response({
-                "status": 0,
-                "error": 1,
-                "message": "INMUEBLE NO ENCONTRADO"
-            }, status=404)
+#         if not inmueble:
+#             return Response({
+#                 "status": 0,
+#                 "error": 1,
+#                 "message": "INMUEBLE NO ENCONTRADO"
+#             }, status=404)
 
-        # Precio mensual
-        monto = inmueble.precio
+#         # Precio mensual
+#         monto = inmueble.precio
 
-        alquiler = AlquilerInmueble.objects.create(
-            arrendatario=request.user,
-            inmueble=inmueble,
-            monto_mensual=monto,
-            metodo_pago="efectivo",
-            estado_pago="pagado",
-        )
+#         alquiler = AlquilerInmueble.objects.create(
+#             arrendatario=request.user,
+#             inmueble=inmueble,
+#             monto_mensual=monto,
+#             metodo_pago="efectivo",
+#             estado_pago="pagado",
+#         )
 
-        # Cambiar anuncio
-        anuncio = getattr(inmueble, "anuncio", None)
-        if anuncio:
-            anuncio.estado = "alquilado"
-            anuncio.is_active = False
-            anuncio.save()
+#         # Cambiar anuncio
+#         anuncio = getattr(inmueble, "anuncio", None)
+#         if anuncio:
+#             anuncio.estado = "alquilado"
+#             anuncio.is_active = False
+#             anuncio.save()
 
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "ALQUILER EFECTIVO REGISTRADO",
-            "values": AlquilerInmuebleSerializer(alquiler).data
-        }, status=201)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "ALQUILER EFECTIVO REGISTRADO",
+#             "values": AlquilerInmuebleSerializer(alquiler).data
+#         }, status=201)
 
-    except Exception as e:
-        return Response({
-            "status": 0,
-            "error": 1,
-            "message": "ERROR AL REGISTRAR ALQUILER",
-            "values": str(e)
-        }, status=500)
+#     except Exception as e:
+#         return Response({
+#             "status": 0,
+#             "error": 1,
+#             "message": "ERROR AL REGISTRAR ALQUILER",
+#             "values": str(e)
+#         }, status=500)
 
-@api_view(["GET"])
-def historial_alquileres(request):
-    try:
-        alquileres = AlquilerInmueble.objects.filter(arrendatario=request.user)
+# @api_view(["GET"])
+# def historial_alquileres(request):
+#     try:
+#         alquileres = AlquilerInmueble.objects.filter(arrendatario=request.user)
 
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "HISTORIAL DE ALQUILERES OBTENIDO",
-            "values": AlquilerInmuebleSerializer(alquileres, many=True).data
-        }, status=200)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "HISTORIAL DE ALQUILERES OBTENIDO",
+#             "values": AlquilerInmuebleSerializer(alquileres, many=True).data
+#         }, status=200)
 
-    except Exception as e:
-        return Response({
-            "status": 0,
-            "error": 1,
-            "message": "ERROR AL OBTENER HISTORIAL",
-            "values": str(e)
-        }, status=500)
+#     except Exception as e:
+#         return Response({
+#             "status": 0,
+#             "error": 1,
+#             "message": "ERROR AL OBTENER HISTORIAL",
+#             "values": str(e)
+#         }, status=500)
 
-@api_view(["GET"])
-def historial_general_alquileres(request):
-    try:
-        if not request.user.grupo or request.user.grupo.nombre != "administrador":
-            return Response({
-                "status": 2,
-                "error": 1,
-                "message": "ACCESO SOLO PARA ADMINISTRADORES"
-            }, status=403)
+# @api_view(["GET"])
+# def historial_general_alquileres(request):
+#     try:
+#         if not request.user.grupo or request.user.grupo.nombre != "administrador":
+#             return Response({
+#                 "status": 2,
+#                 "error": 1,
+#                 "message": "ACCESO SOLO PARA ADMINISTRADORES"
+#             }, status=403)
 
-        alquileres = AlquilerInmueble.objects.all()
+#         alquileres = AlquilerInmueble.objects.all()
 
-        return Response({
-            "status": 1,
-            "error": 0,
-            "message": "HISTORIAL GENERAL OBTENIDO",
-            "values": AlquilerInmuebleSerializer(alquileres, many=True).data
-        }, status=200)
+#         return Response({
+#             "status": 1,
+#             "error": 0,
+#             "message": "HISTORIAL GENERAL OBTENIDO",
+#             "values": AlquilerInmuebleSerializer(alquileres, many=True).data
+#         }, status=200)
 
-    except Exception as e:
-        return Response({
-            "status": 0,
-            "error": 1,
-            "message": "ERROR AL OBTENER HISTORIAL GENERAL",
-            "values": str(e)
-        }, status=500)
+#     except Exception as e:
+#         return Response({
+#             "status": 0,
+#             "error": 1,
+#             "message": "ERROR AL OBTENER HISTORIAL GENERAL",
+#             "values": str(e)
+#         }, status=500)

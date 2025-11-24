@@ -17,6 +17,7 @@ urlpatterns = [
     path('listar', views.listar_contratos, name='listar-contratos'),
    path('detalle-pdf/<int:contrato_id>', views.detalle_contrato_pdf, name='detalle-contrato-pdf'),
    path('mis-contratos/', views.listar_mis_contratos_cliente, name='listar_mis_contratos_cliente'),
+   path('cliente/alquileres/', views.listar_contratos_alquiler_cliente, name='contratos-alquiler-cliente'),
     
 
 ]
