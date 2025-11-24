@@ -12,7 +12,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-
+from dateutil.relativedelta import relativedelta
+from datetime import datetime, date # Asegúrate de que date esté importado
 from fpdf import FPDF
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -1663,11 +1664,14 @@ def listar_mis_contratos_cliente(request):
     usuario_id = request.user.id
     
     try:
+        ESTADOS_VISIBLES = ['activo', 'pendiente', 'finalizado']
         # 1. 🔍 FILTRADO CRUCIAL: Usamos 'id_cliente' para el FK
         contratos = Contrato.objects.filter(
             id_cliente=usuario_id, # <-- FILTRO POR EL CAMPO CORRECTO
-            tipo_contrato__in=['alquilers', 'anticretico'] 
+            tipo_contrato__in=['alquilers', 'anticretico'],
+            estado__in=ESTADOS_VISIBLES 
         ).select_related('agente', 'inmueble').order_by('-fecha_contrato')
+        
 
         # 2. Serialización manual para simplificar (o usa tu Serializer si lo prefieres)
         data = []
@@ -1681,6 +1685,7 @@ def listar_mis_contratos_cliente(request):
                 "fecha_inicio": c.fecha_inicio,
                 "fecha_fin": c.fecha_fin,
                 "inmueble_direccion": c.inmueble.direccion if c.inmueble else 'N/A',
+                "es_pendiente": c.estado 
                 # Añade todos los campos necesarios que el frontend requiera.
             })
             

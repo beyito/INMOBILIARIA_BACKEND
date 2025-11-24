@@ -14,7 +14,8 @@ from django.conf import settings
 from decimal import Decimal, InvalidOperation
 import stripe
 from django.conf import settings
-
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Sum
 stripe.api_key = settings.STRIPE_SECRET_KEY
 # Importamos modelos y serializadores
 from .models import Pago, ComprobantePago 
@@ -22,7 +23,7 @@ from .serializers import PagoSerializer, PagoGestionSerializer,ComprobantePagoSe
 # Asumo que Contrato tiene el campo 'id_cliente' que apunta a 'Usuario'
 from contrato.models import Contrato 
 
-
+import stripe #
 # -------------------------------------------------------------
 # 🛠️ FUNCIÓN AUXILIAR
 # -------------------------------------------------------------
@@ -38,6 +39,7 @@ def safe_decimal(value, default=Decimal('0.00')):
     except (ValueError, TypeError, InvalidOperation):
         return default
 
+# pago/views.py
 
 # =========================================================
 # 1. 💰 FLUJO CLIENTE/PASARELA (Stripe)
@@ -45,98 +47,162 @@ def safe_decimal(value, default=Decimal('0.00')):
 
 
 @api_view(["POST"])
+#@permission_classes([IsAuthenticated]) # Puedes descomentar esto después de probar
 def iniciar_pago_stripe(request, contrato_id):
+    """
+    Cliente autenticado inicia el proceso de pago electrónico creando una sesión de Stripe Checkout.
+    """
     metodo = 'stripe'
     cliente_autenticado = request.user
     
     try:
         contrato = get_object_or_404(Contrato, id=contrato_id)
-
-        monto_a_pagar = contrato.monto
+        
+        # 🚨 Usaremos saldo_restante, no monto_total, para el pago
+        monto_a_pagar = contrato.monto # Usar saldo_restante o monto
         cliente_obligado = contrato.id_cliente
 
         if not monto_a_pagar or monto_a_pagar <= Decimal('0.00'):
-            return Response({"error": "El monto del contrato es inválido."}, status=400)
-
-        # 1. Crear registro local del pago PENDIENTE
+            return Response({"error": "El monto a pagar del contrato es inválido."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 1. Crear registro de PAGO en estado PENDIENTE
         pago_pendiente = Pago.objects.create(
             contrato=contrato,
-            cliente=cliente_obligado,
-            monto_pagado=monto_a_pagar,
+            cliente=cliente_obligado,      
+            monto_pagado=monto_a_pagar,    
             metodo=metodo,
             estado='pendiente',
-            referencia_transaccion="STRIPE_PENDING"
+            referencia_transaccion="STRIPE_TEMP_ID" # Placeholder
         )
+        
+        # 🚨 INTEGRACIÓN REAL DE STRIPE
+        
+        # 2. Inicializar la clave secreta
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        # 3. Monto en centavos (Stripe usa la unidad más pequeña: 100 centavos = 1 unidad de moneda)
+        monto_en_centavos = int(monto_a_pagar * Decimal('100'))
 
-        # 2. CREAR CHECKOUT SESSION REAL EN STRIPE
-        checkout_session = stripe.checkout.Session.create(
+        # 4. Definir URLs de redirección del frontend (AJUSTA ESTAS URLS A TU PROYECTO)
+        # Asume que tienes una variable de entorno para la URL base del frontend, o usa una URL fija.
+        FRONTEND_BASE_URL = "http://localhost:5173" # Ejemplo: Cambia por tu URL real
+        SUCCESS_URL = f"{FRONTEND_BASE_URL}/home/pago/exito/{pago_pendiente.id}" 
+        CANCEL_URL = f"{FRONTEND_BASE_URL}/home/pago/cancelado/{pago_pendiente.id}" 
+        
+        # 5. Crear la sesión de Checkout de Stripe
+        session = stripe.checkout.Session.create(
             payment_method_types=['card'],
-            mode='payment',
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "unit_amount": int(monto_a_pagar * 100),  # Stripe usa centavos
-                    "product_data": {
-                        "name": f"Pago de alquiler - Contrato {contrato.id}",
-                    },
-                },
-                "quantity": 1,
-            }],
-            metadata={
-                "pago_id": pago_pendiente.id,
-                "contrato_id": contrato.id,
-                "cliente_id": cliente_obligado.id,
-            },
-            success_url=f"{settings.FRONTEND_SUCCESS_URL}?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{settings.FRONTEND_CANCEL_URL}",
-        )
+            line_items=[
+                {
+                    'price_data': {
+                        'currency': 'usd', # 🚨 CAMBIA 'usd' POR TU MONEDA REAL (ej: 'mxn', 'clp')
+                        'unit_amount': monto_en_centavos,
+                        'product_data': {
+                            'name': f'Pago de Contrato #{contrato.id}',
+                            'description': f'Pago pendiente para la propiedad en {contrato.inmueble.direccion or ""}', 
 
-        # Guardar referencia de Stripe en el pago
-        pago_pendiente.referencia_transaccion = checkout_session.id
+                        },
+                    },
+                    'quantity': 1,
+                }
+            ],
+            mode='payment',
+            success_url=SUCCESS_URL,
+            cancel_url=CANCEL_URL,
+            # Guardamos el ID del Pago local en los metadatos de Stripe
+            metadata={'pago_id': pago_pendiente.id}, 
+        )
+        
+        # 6. Actualizar el registro local con la Referencia de la sesión de Stripe
+        pago_pendiente.referencia_transaccion = session.id
         pago_pendiente.save()
+
+        # 7. Retornar la URL REAL de Stripe
+        url_pasarela = session.url 
 
         return Response({
             "status": 1,
-            "message": "Transacción iniciada correctamente.",
-            "values": {
-                "pago_id": pago_pendiente.id,
-                "url_checkout": checkout_session.url
-            }
-        }, status=201)
-
+            "message": "Transacción iniciada. Redirigiendo a pasarela.",
+            "values": {"pago_id": pago_pendiente.id, "url_checkout": url_pasarela}
+        }, status=status.HTTP_201_CREATED)
+        
+    except stripe.error.StripeError as e:
+         return Response({"error": f"Error de Stripe: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
 
 
+# =========================================================
+# 2. 📡 WEBHOOK DE STRIPE (Confirmación Asíncrona)
+# =========================================================
+
 @api_view(["POST"])
-# NOTA: En la vida real, esta vista NO llevaría autenticación de usuario
+@csrf_exempt
 def webhook_pasarela_confirmacion(request):
     """
-    Endpoint de la pasarela de pago (Stripe, etc.) para confirmar el pago.
+    Recibe la notificación de Stripe.
+    Actualiza el PAGO a 'confirmado' y el CONTRATO a 'activo' si se cubre el monto.
     """
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    
+    # 🚨 NOTA: Debes configurar STRIPE_WEBHOOK_SECRET en settings.py
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET 
+
     try:
-        # Aquí se implementaría la verificación de la firma del evento de Stripe
-        payload = request.data
-        pago_id = payload.get('pago_id')
-        status_pasarela = payload.get('status') 
-
-        pago = get_object_or_404(Pago, id=pago_id)
-        
-        if status_pasarela == 'success':
-            pago.estado = 'confirmado'
-            pago.save()
-            return Response({"message": "Pago confirmado y registrado."}, status=status.HTTP_200_OK)
-        else:
-            pago.estado = 'fallido'
-            pago.save()
-            return Response({"message": "Pago marcado como fallido."}, status=status.HTTP_200_OK)
-
-    except Http404:
-        return Response({"error": "Pago ID no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        # Verifica la firma para asegurar que la llamada es realmente de Stripe
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
     except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Enviar 400 a Stripe si el payload o la firma es inválida
+        return Response({'message': f'Error de Webhook: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Solo procesar pagos exitosos
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        # Recuperar el ID de pago local que guardamos en la metadata
+        pago_id = session.metadata.get('pago_id')
+
+        if not pago_id:
+            return Response({'message': 'pago_id missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                # Bloquear el registro de pago para evitar condiciones de carrera
+                pago = Pago.objects.select_for_update().get(id=pago_id, estado='pendiente')
+                contrato = pago.contrato
+
+                # 1. Actualizar el estado del pago a CONFIRMADO
+                pago.estado = 'confirmado'
+                pago.fecha_pago = timezone.now()
+                pago.referencia_transaccion = session.id
+                pago.save()
+
+                # 2. Verificar si el contrato ya fue pagado completamente
+                
+                # Sumar TODOS los pagos confirmados (incluyendo el actual)
+                monto_pagado_total = Pago.objects.filter(
+                    contrato=contrato,
+                    estado='confirmado'
+                ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0.00')
+
+                # Si el total pagado cubre el monto total del contrato Y el contrato está pendiente
+                if monto_pagado_total >= contrato.monto and contrato.estado == 'pendiente':
+                    contrato.estado = 'activo'
+                    contrato.fecha_inicio = timezone.now().date() 
+                    contrato.save()
+                
+                return Response({'message': 'Pago y Contrato actualizados'}, status=status.HTTP_200_OK)
+
+        except Pago.DoesNotExist:
+            return Response({'message': 'Pago no encontrado o ya estaba confirmado'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'message': f'Error interno: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({'message': 'Tipo de evento no manejado'}, status=status.HTTP_200_OK)
 
 # =========================================================
 # 2. 📝 FLUJO AGENTE/ADMIN (Registro de Pago Manual/QR)
@@ -212,7 +278,7 @@ class ListarPagosPorContrato(ListAPIView):
         
         # Permisos: Cliente del contrato O Usuario Staff/Admin
         if es_dueno or usuario_autenticado.is_staff:
-            return Pago.objects.filter(contrato=contrato).select_related('cliente').prefetch_related('comprobante')
+            return Pago.objects.filter(contrato=contrato).select_related('cliente').prefetch_related('comprobante').order_by('-fecha_pago')
         
         raise PermissionDenied("No tiene permisos para ver los pagos de este contrato.")
 
@@ -233,7 +299,7 @@ class ObtenerDetallePago(RetrieveAPIView):
 
 
 @api_view(["PATCH"])
-@permission_classes([IsAdminUser]) # EXCLUSIVO para personal administrativo
+#@permission_classes([IsAdminUser]) # EXCLUSIVO para personal administrativo
 def gestionar_pago_manual(request, pago_id):
     """Permite al Admin/Agente confirmar o rechazar un pago manual pendiente."""
     accion = request.data.get('accion')
