@@ -147,3 +147,19 @@ class AnuncioSerializer(serializers.ModelSerializer):
                     'telefono': agente.telefono   
                 }
             return None
+
+class InmuebleMapaSerializer(serializers.ModelSerializer):
+    # Campo personalizado para obtener la URL de la primera foto
+    imagen_principal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InmuebleModel
+        # Agregamos 'imagen_principal' a la lista de campos
+        fields = ['id', 'latitud', 'longitud', 'titulo', 'precio', 'tipo_operacion', 'imagen_principal']
+
+    def get_imagen_principal(self, obj):
+        # Buscamos la primera foto asociada a este inmueble
+        foto = obj.fotos.first() # 'fotos' viene del related_name en tu FotoModel
+        if foto:
+            return foto.url
+        return None # Si no hay fotos, devuelve null

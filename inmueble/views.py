@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import InmuebleModel, CambioInmuebleModel, TipoInmuebleModel, AnuncioModel, FotoModel
-from .serializers import InmuebleSerializer, CambioInmuebleSerializer, TipoInmuebleSerializer
+from .serializers import InmuebleSerializer, CambioInmuebleSerializer, TipoInmuebleSerializer, InmuebleMapaSerializer
 from .serializers import AnuncioSerializer
 from utils.encrypted_logger import registrar_accion
 from inmobiliaria.permissions import requiere_permiso 
@@ -1359,3 +1359,24 @@ class BusquedaNaturalView(APIView):
                  "filtros_nlp": filters
             }
         }, status=200)
+        
+        
+@api_view(['GET'])
+def listar_pines_mapa(request):
+    # 1. Filtramos inmuebles aprobados y activos
+    inmuebles = InmuebleModel.objects.filter(estado="aprobado", is_active=True)
+    
+    # 2. Excluir los que no tienen coordenadas (para no romper el mapa)
+    inmuebles = inmuebles.exclude(latitud__isnull=True).exclude(longitud__isnull=True)
+
+    # 3. OPTIMIZACIÓN CLAVE: Traer las fotos de antemano ("Pre-cargar")
+    # Esto evita que el servidor haga una consulta extra por cada casa en el mapa
+    inmuebles = inmuebles.prefetch_related('fotos')
+    
+    # 4. Serializar
+    serializer = InmuebleMapaSerializer(inmuebles, many=True)
+    
+    return Response({
+        "status": 1,
+        "values": serializer.data
+    })

@@ -55,5 +55,5 @@ urlpatterns = [
     path('todos-mis-inmuebles', views.todos_mis_inmuebles, name='todos_mis_inmuebles'),
 
     path('busqueda/natural/', views.BusquedaNaturalView.as_view(), name='busqueda_nlp'),
-
+    path('mapa-pines/', views.listar_pines_mapa, name='listar_pines_mapa'), 
 ]
