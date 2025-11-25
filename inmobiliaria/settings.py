@@ -204,7 +204,7 @@ STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
 STRIPE_PUBLIC_KEY = config("STRIPE_PUBLIC_KEY", default="")
 FRONTEND_SUCCESS_URL = config("FRONTEND_SUCCESS_URL", default="http://localhost:3000/success")
 FRONTEND_CANCEL_URL = config("FRONTEND_CANCEL_URL", default="http://localhost:3000/cancel")
-
+FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="http://localhost:5173")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 
 

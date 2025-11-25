@@ -85,7 +85,7 @@ def iniciar_pago_stripe(request, contrato_id):
 
         # 4. Definir URLs de redirección del frontend (AJUSTA ESTAS URLS A TU PROYECTO)
         # Asume que tienes una variable de entorno para la URL base del frontend, o usa una URL fija.
-        FRONTEND_BASE_URL = "http://localhost:5173" # Ejemplo: Cambia por tu URL real
+        FRONTEND_BASE_URL = settings.FRONTEND_BASE_URL  # Ejemplo: Cambia por tu URL real
         SUCCESS_URL = f"{FRONTEND_BASE_URL}/home/pago/exito/{pago_pendiente.id}" 
         CANCEL_URL = f"{FRONTEND_BASE_URL}/home/pago/cancelado/{pago_pendiente.id}" 
         
