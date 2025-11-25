@@ -18,7 +18,7 @@ from .services import ejecutar_generacion_alertas_diaria
 import logging
 logger = logging.getLogger(__name__)
 
-
+from suscripciones.models import Suscripcion
 # =========================================================
 # 🎯 CRON JOB: GENERADOR DE ALERTAS DIARIO (CORREGIDO)
 # =========================================================
@@ -153,6 +153,25 @@ def aviso_inmediato_admin(request):
     Permite al administrador enviar un aviso inmediato a grupos específicos de usuarios,
     filtrando por el NOMBRE del grupo.
     """
+    # =======================================================
+    # 🔒 CANDADO SAAS: AVISOS MASIVOS
+    # =======================================================
+    usuario = request.user
+    if not (usuario.is_staff or usuario.is_superuser):
+        try:
+            sub = usuario.suscripcion
+            if not sub.esta_activa:
+                 return Response({"error": "Tu suscripción ha vencido."}, status=403)
+            
+            # Verificamos si el plan tiene habilitado el módulo de alertas/comunicaciones
+            if not sub.plan.permite_alertas:
+                 return Response({
+                     "error": "Tu plan actual no permite el envío de avisos masivos. Actualiza a PRO."
+                 }, status=403)
+
+        except Suscripcion.DoesNotExist:
+             return Response({"error": "Necesitas una suscripción para enviar avisos."}, status=403)
+    # =======================================================
     data = request.data
     # Los nombres de grupo vienen del frontend: ['cliente', 'agente', 'administrador']
     titulo_ingresado = data.get('titulo', '').strip()
@@ -283,6 +302,26 @@ def listar_mis_alertas(request):
             "error": 1,
             "message": "Usuario no autenticado."
         }, status=status.HTTP_401_UNAUTHORIZED)
+    # =======================================================
+    # 🔒 CANDADO SAAS: VISUALIZACIÓN DE ALERTAS
+    # =======================================================
+    # Solo aplicamos restricción si es Agente (los clientes/inquilinos siempre deberían ver sus avisos)
+    if request.user.grupo and request.user.grupo.nombre.lower() == 'agente':
+        if not (request.user.is_staff or request.user.is_superuser):
+            try:
+                sub = request.user.suscripcion
+                if not sub.esta_activa:
+                     # Opción A: Error
+                     return Response({"message": "Suscripción vencida. Paga para ver tus alertas."}, status=403)
+                     # Opción B (Más suave): Retornar lista vacía con mensaje
+                     # return Response({"values": {"alertas": []}, "message": "Renueva tu plan"}, status=200)
+                
+                if not sub.plan.permite_alertas:
+                     return Response({"message": "Tu plan no incluye el módulo de alertas."}, status=403)
+
+            except Suscripcion.DoesNotExist:
+                 return Response({"message": "Sin suscripción activa."}, status=403)
+    # =======================================================
     try:
         # Esto ejecuta el chequeo de "ya corrió hoy" y genera las alertas si es necesario.
         ejecutar_generacion_alertas_diaria()

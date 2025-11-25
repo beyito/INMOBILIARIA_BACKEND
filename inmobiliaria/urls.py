@@ -32,5 +32,6 @@ urlpatterns = [
     path('reportes/', include('reportes.urls')),
     path('ventas/', include('ventas.urls')),  # Nueva línea para ventas
     path('pago/', include('pago.urls')),
+    path('suscripciones/', include('suscripciones.urls')),
 ]
 urlpatterns += static(settings.CONTRATOS_URL, document_root=settings.CONTRATOS_ROOT)

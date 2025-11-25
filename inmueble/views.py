@@ -11,6 +11,7 @@ from utils.encrypted_logger import registrar_accion
 from inmobiliaria.permissions import requiere_permiso 
 from datetime import date
 from django.db.models import Q, Count
+from suscripciones.models import Suscripcion
 # Create your views here.
 #TIPO DE INMUEBLES
 
@@ -103,6 +104,49 @@ from usuario.models import Usuario
 @api_view(['POST'])
 @requiere_permiso("Inmueble", "crear")
 def agente_registrar_inmueble(request):
+    usuario = request.user
+    
+    # =======================================================
+    # 🔒 CANDADO SAAS: VERIFICAR LÍMITE DE INMUEBLES
+    # =======================================================
+    
+    # 1. Verificar si es staff/admin (ellos tienen pase libre)
+    if not (usuario.is_staff or usuario.is_superuser):
+        try:
+            # Buscar suscripción activa
+            suscripcion = usuario.suscripcion
+            
+            if not suscripcion.esta_activa:
+                return Response({
+                    "status": 0, 
+                    "error": 1, 
+                    "message": "Tu suscripción ha vencido. Por favor renueva tu plan para seguir publicando."
+                }, status=403)
+            
+            # Contar cuántos inmuebles activos tiene ya este agente
+            cantidad_actual = InmuebleModel.objects.filter(
+                agente=usuario, 
+                is_active=True
+            ).count()
+            
+            limite = suscripcion.plan.limite_inmuebles
+            
+            # 2. Comparar con el límite del plan
+            if cantidad_actual >= limite:
+                return Response({
+                    "status": 0, 
+                    "error": 1, 
+                    "message": f"Has alcanzado tu límite de {limite} inmuebles. Mejora tu plan a PRO para publicar más."
+                }, status=403)
+                
+        except Suscripcion.DoesNotExist:
+            # Si no tiene suscripción registrada
+            return Response({
+                "status": 0, 
+                "error": 1, 
+                "message": "No tienes un plan contratado. Suscríbete para empezar a publicar."
+            }, status=403)
+            
     data = request.data.copy()
     data['agente'] = request.user.id
 

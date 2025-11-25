@@ -40,6 +40,42 @@ class Usuario(AbstractUser):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # Para poder entrar al admin si quieres
 
+    def get_plan_actual(self):
+        """Devuelve el objeto Plan activo del usuario, o None si no tiene."""
+        if hasattr(self, 'suscripcion') and self.suscripcion.esta_activa:
+            return self.suscripcion.plan
+        return None
+
+    def puede_crear_inmueble(self):
+        """
+        Verifica si el usuario puede crear un inmueble según su plan.
+        Retorna: (True, "") o (False, "Mensaje de error")
+        """
+        # 1. Si es admin o staff, pase libre
+        if self.is_staff or self.is_superuser:
+            return True, "OK"
+
+        # 2. Verificar suscripción
+        if not hasattr(self, 'suscripcion'):
+            return False, "No tienes una suscripción contratada."
+        
+        if not self.suscripcion.esta_activa:
+            return False, "Tu suscripción ha vencido o está inactiva."
+
+        # 3. Verificar límite de inmuebles
+        # Importamos aquí para evitar referencia circular
+        from inmueble.models import InmuebleModel 
+        
+        limite = self.suscripcion.plan.limite_inmuebles
+        actuales = InmuebleModel.objects.filter(agente=self).count()
+        
+        if actuales >= limite:
+            return False, f"Has alcanzado el límite de tu plan ({actuales}/{limite} inmuebles)."
+            
+        return True, "OK"
+    
+    
+    
     def __str__(self):
         return self.nombre
     class Meta:

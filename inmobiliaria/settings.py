@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'reportes',
     'pago',
     'ventas',
+    'suscripciones',
 ]
 
 MIDDLEWARE = [

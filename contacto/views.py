@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view
 from .models import ChatModel, MensajeModel
 from .serializer import ChatSerializer, MensajeSerializer
 from usuario.models import Usuario
-
+from suscripciones.models import Suscripcion
 # --------------------------
 # CHAT
 # --------------------------
@@ -64,6 +64,29 @@ class ChatViewSet(viewsets.ModelViewSet):
     # POST /contacto/chats/
     def perform_create(self, serializer):
         # Verificar permiso de creación en componente Chat
+        usuario = self.request.user
+
+        # --- 🔒 CANDADO SAAS: Límite de Chats Activos ---
+        # Solo aplicamos el límite si es Agente (los clientes suelen ser gratis)
+        if usuario.grupo and usuario.grupo.nombre.lower() == 'agente':
+            if not (usuario.is_staff or usuario.is_superuser):
+                try:
+                    sub = usuario.suscripcion
+                    if not sub.esta_activa:
+                        raise ValidationError("Suscripción vencida. No puedes iniciar nuevos chats.")
+                    
+                    # Lógica: Si es Plan Básico, solo 5 chats simultáneos
+                    # Si tu modelo Plan no tiene 'limite_chats', podemos hardcodearlo por precio o nombre
+                    limite_chats = 5 if sub.plan.precio < 50 else 9999
+                    
+                    chats_actuales = ChatModel.objects.filter(agente=usuario).count()
+                    
+                    if chats_actuales >= limite_chats:
+                         raise ValidationError(f"Límite de chats alcanzado ({limite_chats}). Actualiza a PRO para chats ilimitados.")
+
+                except Suscripcion.DoesNotExist:
+                     raise ValidationError("Necesitas una suscripción para contactar clientes.")
+        # ------------------------------------------------
         if not has_permission(self.request.user, "Chat", "crear"):
             return Response({
                 "status": 2,

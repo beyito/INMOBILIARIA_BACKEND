@@ -41,7 +41,7 @@ from utils.encrypted_logger import registrar_accion, leer_logs
 from django.http import FileResponse, Http404
 
 import os
-
+from suscripciones.models import Suscripcion
 
 @api_view(["GET"])
 # @requiere_permiso("Comision", "leer")
@@ -342,6 +342,27 @@ def crear_contrato_anticretico(request):
     Crea un nuevo contrato de anticrético (Dueño-Cliente).
     AHORA TAMBIÉN ACTUALIZA EL ANUNCIO.
     """
+    # 🔒 CANDADO SAAS: VERIFICAR SI PUEDE CREAR CONTRATOS
+    # =======================================================
+    usuario = request.user
+    if not (usuario.is_staff or usuario.is_superuser):
+        try:
+            sub = usuario.suscripcion
+            if not sub.esta_activa:
+                 return Response({"error": "Tu suscripción ha vencido."}, status=403)
+            
+            # Ejemplo: Solo planes que cuesten más de 50 o tengan nombre PRO
+            # O si agregaste un campo 'permite_contratos' en el modelo Plan
+            # Aquí usaremos una lógica simple:
+            if sub.plan.precio < 50: 
+                return Response({
+                    "error": "Tu plan actual no permite generar contratos legales. Actualiza a PRO."
+                }, status=403)
+
+        except Suscripcion.DoesNotExist:
+             return Response({"error": "Necesitas una suscripción para crear contratos."}, status=403)
+    # =======================================================
+    
     try:
         data = request.data
 
@@ -1106,6 +1127,23 @@ class ContratoAlquilerView(APIView):
     """
 
     def post(self, request):
+        # 🔒 CANDADO SAAS
+        # =======================================================
+        usuario = request.user
+        if not (usuario.is_staff or usuario.is_superuser):
+            try:
+                sub = usuario.suscripcion
+                if not sub.esta_activa:
+                     return Response({"error": "Tu suscripción ha vencido."}, status=403)
+                
+                # Lógica de restricción (ej: solo planes PRO)
+                if sub.plan.precio < 50: 
+                     return Response({"error": "Actualiza a PRO para generar contratos de alquiler."}, status=403)
+
+            except Suscripcion.DoesNotExist:
+                 return Response({"error": "Sin suscripción activa."}, status=403)
+        # =======================================================
+        
         from datetime import datetime
 
         try:

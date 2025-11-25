@@ -11,6 +11,7 @@ import json
 import re
 from django.shortcuts import get_object_or_404
 from .serializers import KPISerializer, SerieSerializer, RankingSerializer
+from suscripciones.models import Suscripcion
 from .utils import (
     get_model, has_field, by_agent_filter, by_property_filter, state_q,
     SCHEDULED_STATES, COMPLETED_STATES, CANCELED_STATES,
@@ -25,7 +26,29 @@ except Exception:
     genai = None
     _GENAI_OK = False
 # ---------------------------------------------------------------------------
+class SaasReportesMixin:
+    """
+    Mixin para verificar si el usuario tiene un plan que permita reportes.
+    """
+    def check_saas_permission(self, request):
+        # 1. Admin/Staff siempre pasa
+        if request.user.is_staff or request.user.is_superuser:
+            return True, ""
 
+        try:
+            # 2. Verificar suscripción activa
+            sub = request.user.suscripcion
+            if not sub.esta_activa:
+                return False, "Tu suscripción ha vencido. Renueva para ver reportes."
+            
+            # 3. Verificar feature 'permite_reportes'
+            if not sub.plan.permite_reportes:
+                return False, "Tu plan actual no incluye el módulo de Reportes Avanzados. Actualiza a PRO."
+                
+            return True, ""
+            
+        except Suscripcion.DoesNotExist:
+            return False, "No tienes un plan contratado."
 
 def load_cita_model():
     """
@@ -90,10 +113,13 @@ def safe_count(qs):
         return 0
 
 
-class KPIsView(APIView):
+class KPIsView(APIView, SaasReportesMixin):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        permitido, mensaje = self.check_saas_permission(request)
+        if not permitido:
+            return Response({"detail": mensaje}, status=403)
         Cita = load_cita_model()
         scope = request.query_params.get('scope', 'global')  # global|agente|inmueble
         scope_id = request.query_params.get('id')

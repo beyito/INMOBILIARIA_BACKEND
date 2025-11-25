@@ -13,6 +13,7 @@ from .serializers import CitaSerializer
 
 # ⬇️ Ajusta este import si tu decorador vive en otro módulo
 from inmobiliaria.permissions import requiere_permiso 
+from suscripciones.models import Suscripcion
 
 User = get_user_model()
 
@@ -71,6 +72,26 @@ def obtener_cita(request, cita_id):
 @permission_classes([IsAuthenticated])
 @requiere_permiso(componente="cita", accion="crear")
 def crear_cita(request):
+    # 🔒 CANDADO SAAS: Solo agentes con suscripción activa
+    # =======================================================
+    usuario = request.user
+    # Asumimos que si eres agente (grupo 2), necesitas pagar. 
+    # Si eres cliente (grupo 3), quizás no. Ajusta según tu lógica.
+    es_agente = usuario.grupo and usuario.grupo.nombre.lower() == 'agente'
+
+    if es_agente and not (usuario.is_staff or usuario.is_superuser):
+        try:
+            sub = usuario.suscripcion
+            if not sub.esta_activa:
+                 return Response({"detail": "Tu suscripción ha vencido. Renueva para agendar citas."}, status=403)
+            
+            # Opcional: Lógica de límite de citas si quisieras
+            # if sub.plan.nombre == 'Basico' and Cita.objects.filter(agente=usuario).count() > 20:
+            #    return Response({"detail": "Límite de citas alcanzado."}, status=403)
+
+        except Suscripcion.DoesNotExist:
+             return Response({"detail": "Necesitas un plan activo para gestionar tu agenda."}, status=403)
+    # =======================================================
     # ❌ no metas agente/creado_por en el body; el serializer los setea
     ser = CitaSerializer(data=request.data, context={"request": request})
     if ser.is_valid():
@@ -87,6 +108,20 @@ def crear_cita(request):
 @permission_classes([IsAuthenticated])
 @requiere_permiso(componente="cita", accion="actualizar")
 def reprogramar_cita(request, cita_id):
+    # =======================================================
+    # 🔒 CANDADO SAAS
+    # =======================================================
+    # Validamos también al reprogramar para evitar uso sin pago
+    usuario = request.user
+    es_agente = usuario.grupo and usuario.grupo.nombre.lower() == 'agente'
+
+    if es_agente and not (usuario.is_staff or usuario.is_superuser):
+        try:
+            if not usuario.suscripcion.esta_activa:
+                return Response({"detail": "Suscripción vencida."}, status=403)
+        except Suscripcion.DoesNotExist:
+             return Response({"detail": "Sin suscripción."}, status=403)
+    # =======================================================
     cita = get_object_or_404(Cita, id=cita_id)
     if not _is_agent_owner(request.user, cita):
         return Response(
