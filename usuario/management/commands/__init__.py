@@ -8,7 +8,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         User = get_user_model()
         
-        # Leer variables de entorno (las pondremos en Render)
+        # Leer variables de entorno
         username = os.environ.get('DJANGO_SUPERUSER_USERNAME')
         email = os.environ.get('DJANGO_SUPERUSER_EMAIL')
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
@@ -18,14 +18,13 @@ class Command(BaseCommand):
             return
 
         if not User.objects.filter(username=username).exists():
-            print(f"Creando superusuario: {username}...")
             try:
-                # Como usas un modelo de Usuario personalizado, aseguramos los campos mínimos
+                # Crear el usuario
                 User.objects.create_superuser(
                     username=username, 
                     email=email, 
                     password=password,
-                    nombre="Administrador Sistema" # Campo extra de tu modelo
+                    nombre="Administrador Sistema" # Ajusta esto si tu modelo lo requiere
                 )
                 self.stdout.write(self.style.SUCCESS(f'✅ Superusuario "{username}" creado exitosamente!'))
             except Exception as e:
