@@ -34,6 +34,7 @@ AUTH_USER_MODEL = 'usuario.Usuario'
 
 # Application definition
 
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -63,7 +64,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #'inmobiliaria.middleware.JsonErrorMiddleware'
+    'inmobiliaria.middleware.JsonErrorMiddleware'
 ]
 
 ROOT_URLCONF = 'inmobiliaria.urls'
@@ -105,31 +106,6 @@ CHANNEL_LAYERS = {
 #         'PORT': '5432',
 #     }
 # }
-# DATABASES = {
-#      'default': {
-#          'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#          'NAME': 'inmobiliaria',     # nombre de tu base de datos
-#          'USER': 'postgres',
-#          'PASSWORD': 'KevinAntonio', # tu contraseña de PostgreSQL
-#          'HOST': 'localhost',
-#          'PORT': '5432',
-#      }
-#  }
- 
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', cast=int),
-        'OPTIONS': {
-            'sslmode': 'require',  # Deshabilita el uso de SSL
-        },
-    }    
-} 
 
 # DATABASES = {
 #     'default': {
@@ -191,6 +167,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://staging.d3kmgk0vkfdvym.amplifyapp.com",
     "http://localhost:5173",
     "https://inmueble-front.vercel.app",
+    "https://inmueble-front-production.up.railway.app"
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -203,7 +180,8 @@ REST_FRAMEWORK = {
 # settings.py
 
 # settings.py
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+#EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS =True
@@ -215,6 +193,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # durante pruebas, fuerza el destinatario
 
 EMAIL_TIMEOUT = 30
+
+ALERTAS_AUTO_DELETE_INVALID_DEVICE = True # o False (por defecto)
 
 #pip freeze > requirements.txt PARA GENERAR LISTA DE REQUIRIMIENTOS
 #pip install -r requirements.txt PARA INSTALAR LOS REQUIRIMIENTOS

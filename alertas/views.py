@@ -1,244 +1,340 @@
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+# alertas/views.py
 from rest_framework.response import Response
+from rest_framework import status
+from datetime import timedelta
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
+from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from .models import AlertConfig, Alerta
-from .serializers import AlertConfigSerializer, AlertaSerializer
-from .services import scan_and_send_alerts
-from inmobiliaria.permissions import requiere_permiso
-from django.db import models # <<< FALTA ESTA IMPORTACIÓN >>>
-from .models import AlertaLectura
-# CONFIG POR CONTRATO
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "leer") # <--- AÑADIDO
-def get_config(request, contrato_id: int):
-    from contrato.models import Contrato
-    contrato = get_object_or_404(Contrato, pk=contrato_id)
-    cfg, _ = AlertConfig.objects.get_or_create(contrato=contrato, defaults={'dias_recordatorio':[30,15,7,3,1]})
-    return Response({"status":1,"error":0,"message":"OK","values":AlertConfigSerializer(cfg).data})
+from contrato.models import Contrato # Tu modelo de Contrato
+from usuario.models import Usuario # Tu modelo de Usuario
+from .models import AlertaModel
+from .utils import enviar_notificacion_push 
+from .serializers import AlertaSerializer
+from .services import ejecutar_generacion_alertas_diaria
+import logging
+logger = logging.getLogger(__name__)
 
-@api_view(['PATCH'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "actualizar") # <--- AÑADIDO
-def update_config(request, contrato_id: int):
-    from contrato.models import Contrato
-    contrato = get_object_or_404(Contrato, pk=contrato_id)
-    cfg, _ = AlertConfig.objects.get_or_create(contrato=contrato)
-    ser = AlertConfigSerializer(cfg, data=request.data, partial=True)
-    ser.is_valid(raise_exception=True)
-    ser.save()
-    return Response({"status":1,"error":0,"message":"Actualizado","values":ser.data})
 
-# CRUD ALERTAS MANUALES (tipo=custom por defecto)
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "crear") # <--- AÑADIDO
-def crear_alerta(request):
-    data = request.data.copy()
-    if 'tipo' not in data:
-        data['tipo'] = 'custom'
-    ser = AlertaSerializer(data=data)
-    ser.is_valid(raise_exception=True)
-    ser.save()
-    return Response({"status":1,"error":0,"message":"Creada","values":ser.data})
-
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "leer") # <--- AÑADIDO
-def listar_alertas(request):
-    filtro = request.GET.get('filtro', 'proximos')  # proximos|vencidos|todos
-    hoy = timezone.now().date()
-    qs = Alerta.objects.all().order_by('due_date') 
-
-    if filtro == 'proximos':
-        qs = qs.filter(due_date__gte=hoy).exclude(estado='enviado')
-    elif filtro == 'vencidos':
-        qs = qs.filter(due_date__lt=hoy)
-    # 'todos' => sin filtro adicional
-
-    return Response({"status":1,"error":0,"message":"OK","values":AlertaSerializer(qs, many=True).data})
-
-@api_view(['PATCH'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "actualizar") # <--- AÑADIDO
-def marcar_enviado(request, alerta_id: int):
-    a = get_object_or_404(Alerta, pk=alerta_id)
-    a.estado = 'enviado'
-    a.save(update_fields=['estado'])
-    return Response({"status":1,"error":0,"message":"Marcada como enviada","values":{"id":a.id}})
-
-# TRIGGER MANUAL DEL ESCÁNER
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "crear")
-def run_scan(request):
-    res = scan_and_send_alerts()
-    return Response({"status":1,"error":0,"message":"EJECUTADO","values":res})
-from django.utils import timezone
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-from .models import Alerta, AlertLog
-# Asegúrate de importar las funciones de services.py
-from .services import _destinatarios, _send_email, _send_push_placeholder 
-from usuario.models import Grupo # Ya que se usa en el cuerpo de la función
+# =========================================================
+# 🎯 CRON JOB: GENERADOR DE ALERTAS DIARIO (CORREGIDO)
+# =========================================================
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "crear")
-def avisar_grupos(request):
+# NOTA: En producción, esta ruta debe ser accedida solo internamente o por un servicio de Cron Job.
+def cron_generar_alertas(request):
     """
-    Crea una alerta 'custom' y la envía de inmediato a los grupos/usuarios indicados.
-    El conteo de 'email' ahora reflejará el número real de correos enviados.
+    Ejecuta el proceso de detección y generación de alertas DIARIAMENTE.
+    
+    1. ALQUILER: Envía recordatorio el día exacto de la fecha de pago (fecha_inicio.day).
+    2. ANTICRÉTICO: Envía recordatorio 90 días antes del vencimiento (una sola vez).
+    """
+    hoy = timezone.now().date()
+    alquiler_alertas = 0
+    anticretico_alertas = 0
+
+    # 1. PROCESAR CONTRATOS DE ALQUILER (Recordatorio de Pago Mensual)
+    
+    # Filtramos contratos activos cuya fecha de inicio no es nula
+    alquileres_activos = Contrato.objects.filter(
+        tipo_contrato='alquiler', 
+        estado='activo',
+        fecha_inicio__isnull=False
+    ).select_related('agente')
+    
+    for contrato in alquileres_activos:
+        fecha_inicio = contrato.fecha_inicio # Ya es un objeto date si es models.DateField
+        fecha_fin = contrato.fecha_fin       # Ya es un objeto date si es models.DateField  
+        fecha_pago_base = contrato.fecha_inicio.day
+        if hoy < fecha_inicio:
+            # print(f"Contrato {contrato.id} no ha iniciado.")
+            continue
+        
+        if hoy > fecha_fin:
+            # print(f"Contrato {contrato.id} ya finalizó.")
+            continue
+        # LÓGICA CORREGIDA: Si hoy es el día de pago del contrato
+        if hoy.day == fecha_pago_base:
+            
+            # --- EVITAR DUPLICADOS EN EL MISMO DÍA (Cron Job podría correr dos veces) ---
+            # Verificamos si ya existe una alerta para este contrato, para el mes/año actual, 
+            # y que haya sido programada/enviada hoy.
+            alerta_existente_hoy = AlertaModel.objects.filter(
+                contrato=contrato, 
+                tipo_alerta='pago_alquiler',
+                mes_obligacion=hoy.month, # Usamos el mes actual como obligación
+                año_obligacion=hoy.year,
+            ).filter(
+                # Importante: Solo verificamos alertas creadas/programadas hoy
+                fecha_programada__date=hoy 
+            ).exists()
+            
+            if not alerta_existente_hoy:
+                # El recordatorio es para el Agente (quien debe cobrar)
+                mensaje_alquiler = (
+                    f"📆 PAGO ALQUILER HOY: El pago de alquiler del inmueble "
+                    f"'{contrato.inmueble.titulo}' (ID: {contrato.inmueble.id}) vence "
+                    f"el día de HOY, {hoy.strftime('%d/%m/%Y')}."
+                )
+                
+                alerta = AlertaModel.objects.create(
+                    contrato=contrato,
+                    usuario_receptor=contrato.agente,
+                    tipo_alerta='pago_alquiler',
+                    fecha_programada=timezone.now(),
+                    mensaje=mensaje_alquiler,
+                    mes_obligacion=hoy.month,
+                    año_obligacion=hoy.year
+                )
+                # Enviar y contabilizar
+                enviar_notificacion_push(alerta)
+                alquiler_alertas += 1
+
+    # 2. PROCESAR CONTRATOS DE ANTICRÉTICO (Recordatorio de Finalización - Lógica se mantiene)
+    # Notificar al agente 90 días antes de la fecha de fin (para negociar).
+    fecha_recordatorio_anticretico = hoy + timedelta(days=90) 
+    
+    anticreticos_activos = Contrato.objects.filter(
+        tipo_contrato='anticretico', 
+        estado='activo',
+        fecha_fin__isnull=False
+    ).select_related('agente')
+    
+    for contrato in anticreticos_activos:
+        # Solo si la fecha de fin cae DENTRO de los próximos 90 días
+        if contrato.fecha_fin == fecha_recordatorio_anticretico:
+            
+            # 2.1 Verificar si la alerta ya fue enviada (solo se envía 1 vez)
+            alerta_existente = AlertaModel.objects.filter(
+                contrato=contrato, 
+                tipo_alerta='vencimiento_anticretico',
+            ).exists()
+            
+            if not alerta_existente:
+                dias_restantes = (contrato.fecha_fin - hoy).days
+
+                mensaje_anticretico = (
+                    f"🔔 VENCIMIENTO PRÓXIMO (90 días): El contrato de anticrético "
+                    f"del inmueble '{contrato.inmueble.titulo}' (ID: {contrato.inmueble.id}) "
+                    f"finaliza en {dias_restantes} días ({contrato.fecha_fin.strftime('%d/%m/%Y')})."
+                )
+                
+                alerta = AlertaModel.objects.create(
+                    contrato=contrato,
+                    usuario_receptor=contrato.agente,
+                    tipo_alerta='vencimiento_anticretico',
+                    fecha_programada=timezone.now(),
+                    mensaje=mensaje_anticretico
+                )
+                enviar_notificacion_push(alerta)
+                anticretico_alertas += 1
+                
+    # Respuesta final del Cron Job
+    logger.info(f"Cron Job finalizado. Alquiler: {alquiler_alertas}, Anticrético: {anticretico_alertas}")
+    return Response({
+        "status": 1, 
+        "error": 0,
+        "message": f"Proceso de alertas ejecutado. Alquiler: {alquiler_alertas}, Anticrético: {anticretico_alertas}."
+    }, status=status.HTTP_200_OK)
+
+
+# =========================================================
+# 📢 NUEVA FUNCIÓN: AVISO INMEDIATO PARA ADMINISTRADOR
+# =========================================================
+# alertas/views.py (función aviso_inmediato_admin, CORREGIDA)
+
+@api_view(['POST'])
+#@permission_classes([IsAuthenticated, IsAdminUser])
+def aviso_inmediato_admin(request):
+    """
+    Permite al administrador enviar un aviso inmediato a grupos específicos de usuarios,
+    filtrando por el NOMBRE del grupo.
     """
     data = request.data
-    titulo = (data.get('titulo') or '').strip()
-    if not titulo:
-        return Response({"error": "titulo es requerido"}, status=400)
+    # Los nombres de grupo vienen del frontend: ['cliente', 'agente', 'administrador']
+    titulo_ingresado = data.get('titulo', '').strip()
+    grupos_target = data.get('grupos', [])
+    mensaje_cuerpo = data.get('mensaje')
 
-    hoy = timezone.localdate()
+    
+    titulo_final = titulo_ingresado if titulo_ingresado else 'AVISO URGENTE'
+    # ... (Validación de mensaje y grupos_target se mantiene igual)
+    
 
-    # 1. CREAR ALERTA BASE
-    # *********************
-    alerta = Alerta.objects.create(
-        tipo='custom',
-        titulo=titulo,
-        descripcion=data.get('descripcion', '') or '',
-        due_date=hoy,
-        estado='pendiente'
+    # Convertimos los nombres de grupo de frontend a minúsculas para un filtro robusto
+    target_groups = [g.lower() for g in grupos_target if g.lower() in ['cliente', 'agente', 'administrador']]
+    
+    if not target_groups:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Grupos inválidos. Use uno o más de: propietario, inquilino, agente, administrador."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 1. CORRECCIÓN: FILTRAMOS POR EL NOMBRE DEL GRUPO ASIGNADO (grupo__nombre__in)
+    usuarios_a_notificar = Usuario.objects.filter(
+        grupo__nombre__in=target_groups, 
+        is_active=True
     )
-
-    # 2. ADJUNTAR DESTINOS (sin cambios)
-    # **********************************
-    grupos_req = data.get('grupos_destino') or []
-    for g in grupos_req:
-        if isinstance(g, int):
-            alerta.grupos_destino.add(g)
-        else:
-            # Importado arriba: from usuario.models import Grupo
-            obj = Grupo.objects.filter(nombre__iexact=str(g).strip()).first()
-            if obj:
-                alerta.grupos_destino.add(obj.id)
-
-    for uid in (data.get('usuarios_destino') or []):
-        try:
-            alerta.usuarios_destino.add(int(uid))
-        except Exception:
-            pass
-
-    # 3. CONSTRUIR Y ENVIAR YA (Lógica de conteo corregida)
-    # *****************************************************
-    enviados = {"email": 0, "push": 0}
-    dests = _destinatarios(alerta)
     
-    # 3.1. LÓGICA DE EMAIL
-    # ====================
-    # Verifica si el AlertLog ya existe para ESTA alerta y ESTE canal HOY.
-    # El AlertLog SÓLO debe crearse si el envío fue exitoso a CUALQUIERA.
-    ya_email_enviado = AlertLog.objects.filter(
-        alerta=alerta, canal='email', fecha_envio=hoy, days_before=0
-    ).exists()
+    alertas_enviadas = 0
+    mensaje_completo = f"**{titulo_final.upper()}**: {mensaje_cuerpo}"
     
-    if not ya_email_enviado:
-        total_emails_enviados = 0
-        asunto = alerta.titulo
-        cuerpo = alerta.descripcion or ""
+    # 2. Iterar y enviar la notificación a cada usuario
+    for usuario in usuarios_a_notificar:
+        # ... (El resto de la lógica de creación de alerta y envío se mantiene igual)
         
-        # Itera sobre TODOS los destinatarios
-        for addr in dests:
-            if _send_email(addr, asunto, cuerpo):
-                total_emails_enviados += 1 # <-- CONTEO INDIVIDUAL PRECISO
-
-        # Si se envió al menos un correo, crea el AlertLog (para evitar futuros duplicados)
-        if total_emails_enviados > 0:
-            AlertLog.objects.create(alerta=alerta, canal='email', days_before=0)
-            enviados["email"] = total_emails_enviados # <-- ASIGNA EL CONTEO TOTAL REAL
-            
-    # 3.2. LÓGICA DE PUSH
-    # ===================
-    ya_push_enviado = AlertLog.objects.filter(
-        alerta=alerta, canal='push', fecha_envio=hoy, days_before=0
-    ).exists()
-    
-    if not ya_push_enviado and _send_push_placeholder(len(dests)):
-        AlertLog.objects.create(alerta=alerta, canal='push', days_before=0)
-        enviados["push"] = len(dests) # Asume que PUSH es un solo envío a un servicio
-
-    # 4. MARCAR Y RESPONDER
-    # *********************
-    alerta.estado = 'enviado'
-    alerta.save(update_fields=['estado'])
+        # Se asume la existencia de un Contrato nulo para avisos generales
+        # Se requiere que en AlertaModel se haya añadido 'aviso_admin'
+        
+        # Simplemente crearemos la alerta y la enviaremos
+        try:
+             alerta = AlertaModel.objects.create(
+                contrato=None, 
+                usuario_receptor=usuario,
+                tipo_alerta='aviso_admin', 
+                fecha_programada=timezone.now(),
+                mensaje=mensaje_completo,
+            )
+             # Asumo que esta función está definida correctamente
+             from .utils import enviar_notificacion_push 
+             enviar_notificacion_push(alerta)
+             alertas_enviadas += 1
+        except Exception as e:
+            # Manejar error si el usuario no tiene correo o token, pero continuar
+            print(f"Error al enviar aviso a {usuario.username}: {e}")
+            continue
 
     return Response({
-        "status": 1,
+        "status": 1, 
         "error": 0,
-        "message": "AVISO ENVIADO",
-        "values": {
-            "alerta_id": alerta.id,
-            "email": enviados["email"], # <-- ¡Aquí verás el número real de correos enviados!
-            "push": enviados["push"]
-        }
-    }, status=200)
-# alertas/views.py (agrega)
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-#@requiere_permiso("ALERTA", "leer") # <--- DECORADOR APLICADO
+        "message": f"Aviso inmediato enviado exitosamente. Total de usuarios notificados: {alertas_enviadas}.",
+        "detalles": f"Grupos objetivo: {', '.join(target_groups)}"
+    }, status=status.HTTP_200_OK)
 
-# alerta/views.py (Función mis_alertas CON LÓGICA SIMPLIFICADA)
+# ... (otras vistas como listar_mis_alertas)
+@api_view(['PATCH'])
+#@requiere_permiso("Alerta", "actualizar")
+def marcar_estado_alerta(request, alerta_id):
+    """
+    Permite al usuario (Agente/Cliente) cambiar el estado de lectura (estado_visto)
+    de una alerta a 'visto' o 'descartado'.
 
-def mis_alertas(request):
-    """ Retorna todas las alertas dirigidas al usuario, anotadas con el estado 'visto'. """
-    user = request.user
-    hoy = timezone.localdate()
+    Requiere en el body: {"estado_visto": "visto" | "descartado"}
+    """
+    USUARIO_AUTENTICADO = request.user
+    NUEVO_ESTADO = request.data.get('estado_visto', '').lower()
     
-    # 1. CONSULTA BASE
-    alertas_vistas = AlertaLectura.objects.filter(usuario=user).values_list('alerta_id', flat=True)
-    qs = Alerta.objects.filter(
-        models.Q(usuarios_destino=user) |
-        (user.grupo and models.Q(grupos_destino=user.grupo)) |
-        models.Q(contrato__agente=user) 
-    ).distinct().order_by('-creado')    
+    ESTADOS_VALIDOS = ['visto', 'descartado']
 
-    # 2. ANOTACIÓN (Agrega el campo 'visto' para el serializador)
-    qs = qs.annotate(
-        visto=models.Case(
-            models.When(id__in=alertas_vistas, then=True),
-            default=False,
-            output_field=models.BooleanField()
+    if NUEVO_ESTADO not in ESTADOS_VALIDOS:
+        return Response({
+            "status": 0, "error": 1,
+            "message": f"Estado de lectura inválido. Use uno de: {ESTADOS_VALIDOS}"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # 1. Buscar la alerta y asegurarse de que pertenece al usuario autenticado
+        alerta = get_object_or_404(
+            AlertaModel, 
+            id=alerta_id, 
+            usuario_receptor=USUARIO_AUTENTICADO
         )
-    )
+        
+        # 2. Actualizar el estado
+        alerta.estado_visto = NUEVO_ESTADO
+        alerta.save()
 
+        # 3. Respuesta de éxito
+        return Response({
+            "status": 1, "error": 0,
+            "message": f"Alerta {alerta_id} marcada como '{NUEVO_ESTADO}' correctamente.",
+            "values": AlertaSerializer(alerta).data
+        }, status=status.HTTP_200_OK)
 
-    # 3. FILTRADO (El cliente solo quiere la lista completa)
-    # >>> Ignoramos el parámetro de filtro para devolver siempre el QuerySet completo (qs) <<<
-
-    return Response({"status":1,"error":0,"message":"OK","values":AlertaSerializer(qs, many=True).data})
-
-# ... (El resto del archivo, incluyendo marcar_como_visto, permanece igual)
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-def marcar_como_visto(request, alerta_id: int):
-    """
-    Registra que el usuario actual ha visto la alerta específica.
-    """
-    user = request.user
-    alerta = get_object_or_404(Alerta, pk=alerta_id)
+    except AlertaModel.DoesNotExist:
+        return Response({
+            "status": 0, "error": 1,
+            "message": "Alerta no encontrada o no pertenece al usuario."
+        }, status=status.HTTP_404_NOT_FOUND)
     
-    # Intenta crear la entrada. Si ya existe, simplemente se ignora.
-    AlertaLectura.objects.get_or_create(alerta=alerta, usuario=user)
+    except Exception as e:
+        return Response({
+            "status": 0, "error": 1,
+            "message": f"Error al procesar la solicitud: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # alertas/views.py (Añadir esta función)
 
-    return Response({"status": 1, "error": 0, "message": "Alerta marcada como vista"})
+@api_view(['GET'])
+# Asumo que la protección se hace en la capa superior (Admin/Agente)
+# Si es para el cliente/agente logueado, basta con IsAuthenticated
+def listar_mis_alertas(request):
+    """
+    Lista las alertas asociadas al usuario autenticado (Agente/Cliente)
+    para la vista de Notificaciones del frontend.
+    """
+    if not request.user.is_authenticated:
+        return Response({
+            "status": 0,
+            "error": 1,
+            "message": "Usuario no autenticado."
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        # Esto ejecuta el chequeo de "ya corrió hoy" y genera las alertas si es necesario.
+        ejecutar_generacion_alertas_diaria()
+    except Exception as e:
+        logger.error(f"Fallo al generar alertas durante el listado: {e}")
+        # El proceso de listado debe continuar.
+    # Filtrar solo las alertas destinadas al usuario logueado
+    alertas = AlertaModel.objects.filter(
+        usuario_receptor=request.user
+    ).order_by('-fecha_programada')
+    
+    serializer = AlertaSerializer(alertas, many=True)
+    
+    return Response({
+        "status": 1, 
+        "error": 0,
+        "message": f"LISTADO DE ALERTAS PARA {request.user.nombre}",
+        "values": {"alertas": serializer.data}
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+#@requiere_permiso("Alerta", "leer") # Solo usuarios con permiso de lectura en Alertas (Admin)
+@permission_classes([IsAuthenticated])
+def listar_alertas_admin(request):
+    """
+    Lista TODAS las alertas del sistema (para el Dashboard del Administrador).
+    Permite filtros opcionales:
+    ?estado=pendiente | enviado | fallido
+    ?tipo=pago_alquiler | aviso_admin
+    """
+    estado_filtro = request.GET.get('estado')
+    tipo_filtro = request.GET.get('tipo')
+    
+    # Base Query: Obtener todas las alertas
+    # Usamos select_related para optimizar la consulta al acceder a Contrato y Usuario
+    alertas = AlertaModel.objects.select_related('contrato', 'usuario_receptor').all()
+    
+    # Aplicar filtros
+    if estado_filtro:
+        alertas = alertas.filter(estado_envio=estado_filtro.lower())
+    
+    if tipo_filtro:
+        alertas = alertas.filter(tipo_alerta=tipo_filtro.lower())
+        
+    # Ordenar por fecha de la más reciente a la más antigua
+    alertas = alertas.order_by('-fecha_programada')
+    
+    serializer = AlertaSerializer(alertas, many=True)
+    
+    return Response({
+        "status": 1, 
+        "error": 0,
+        "message": "LISTADO GENERAL DE ALERTAS DEL SISTEMA",
+        "values": {"alertas": serializer.data}
+    }, status=status.HTTP_200_OK)

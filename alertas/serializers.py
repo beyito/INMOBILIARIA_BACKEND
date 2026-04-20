@@ -1,14 +1,13 @@
-from rest_framework import serializers
-from .models import AlertConfig, Alerta
+# alertas/serializers.py
 
-class AlertConfigSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AlertConfig
-        fields = ['contrato', 'dias_recordatorio', 'canal_email', 'canal_push', 'activo']
-        read_only_fields = ['contrato']
+from rest_framework import serializers
+from .models import AlertaModel
 
 class AlertaSerializer(serializers.ModelSerializer):
+    # Incluimos información de solo lectura del contrato asociado
+    contrato_tipo = serializers.CharField(source='contrato.get_tipo_contrato_display', read_only=True)
+    contrato_agente = serializers.CharField(source='contrato.agente.nombre', read_only=True)
+    
     class Meta:
-        model = Alerta
-        fields = ['id','contrato','tipo','titulo','descripcion','due_date','periodo_index','estado','creado','actualizado']
-        read_only_fields = ['creado','actualizado']
+        model = AlertaModel
+        fields = '__all__'

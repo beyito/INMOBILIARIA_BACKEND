@@ -1,18 +1,20 @@
-from django.urls import path
-from . import views
-from .views import avisar_grupos, run_scan  # <-- importa la vista
-urlpatterns = [
-    # Config por contrato
-    path('config/<int:contrato_id>/', views.get_config, name='alertas_get_config'),
-    path('config/<int:contrato_id>/update', views.update_config, name='alertas_update_config'),
+# alertas/urls.py
 
-    # Alertas manuales + listado
-    path('', views.listar_alertas, name='alertas_list'),
-    path('crear/', views.crear_alerta, name='alertas_crear'),
-    path('<int:alerta_id>/mark', views.marcar_enviado, name='alertas_mark'),
-    path('mis_alertas/', views.mis_alertas, name='alertas_mias'),
-    path('<int:alerta_id>/visto/', views.marcar_como_visto, name='alerta_visto'),
-    # Escaneo/envío
-    path('avisar/', avisar_grupos, name='alertas-avisar'),
-    path('run/', run_scan, name='alertas-run'),
+from django.urls import path
+from .import views
+
+urlpatterns = [
+    # ⚠️ CRON JOB (Disparado por el servidor diariamente)
+    # RUTA: /alertas/ejecutar-generacion/
+    path('ejecutar-generacion/', views.cron_generar_alertas, name='cron_generar_alertas'),
+    
+    # 📢 AVISO INMEDIATO (Solo para Administrador)
+    # RUTA: /alertas/aviso-inmediato/
+    path('aviso-inmediato/', views.aviso_inmediato_admin, name='aviso_inmediato_admin'),
+    
+    # 📊 LECTURA DE ALERTAS (Dashboard para Agente/Admin/Cliente)
+    # RUTA: /alertas/listar-mis-alertas/
+    path('listar-mis-alertas/', views.listar_mis_alertas, name='listar_mis_alertas'),
+    path('marcar-visto/<int:alerta_id>/', views.marcar_estado_alerta, name='marcar_estado_alerta'),
+    path('listar-admin/', views.listar_alertas_admin, name='listar_alertas_admin'),
 ]

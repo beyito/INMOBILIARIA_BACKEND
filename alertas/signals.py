@@ -1,67 +1,38 @@
+# alertas/signals.py (CÓDIGO CORREGIDO PARA ROMPER LA DEPENDENCIA)
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from dateutil.relativedelta import relativedelta
-from datetime import date, datetime # Necesitamos datetime para la conversión
-from contrato.models import Contrato
-from .models import Alerta, AlertConfig
+from django.apps import apps # Necesario para get_model
+# Importación de la vista movida dentro del handler para evitar circular imports
 
-# Función auxiliar para convertir cadena YYYY-MM-DD a objeto date
-def _get_safe_date(value):
-    if isinstance(value, date):
-        return value
-    if isinstance(value, str):
-        try:
-            return datetime.strptime(value, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
-            return None
-    return None
-
-
-@receiver(post_save, sender=Contrato)
-def crear_alertas_por_contrato(sender, instance: Contrato, created, **kwargs):
-    """
-    Genera alertas de cuotas (alquiler) o fin de contrato (anticrético).
-    Usa una verificación de tipo robusta y convierte las fechas si son strings.
-    """
-    if not created:
-        return
-
-    # 1. Configuración por defecto
-    AlertConfig.objects.get_or_create(
-        contrato=instance,
-        defaults={'dias_recordatorio': [30,15,7,3,1], 'canal_email': True, 'canal_push': True, 'activo': True}
-    )
-
-    # Lectura y conversión robusta de valores:
-    tipo = getattr(instance, 'tipo_contrato', None)
+@receiver(post_save)
+def crear_alertas_post_contrato_guardado(sender, instance, created, **kwargs):
     
-    # Usar _get_safe_date para manejar strings y None
-    fi   = _get_safe_date(getattr(instance, 'fecha_inicio', None))
-    fin  = _get_safe_date(getattr(instance, 'fecha_fin', None))
-    
-    meses = getattr(instance, 'vigencia_meses', 0) or 0
+    # 🟢 OBTENER EL MODELO CONTRATO DE FORMA SEGURA DENTRO DEL HANDLER
+    try:
+        # Esto es seguro porque las apps ya habrán terminado de cargar.
+        ContratoModel = apps.get_model('contrato', 'Contrato')
+    except LookupError:
+        return # Salir si el modelo Contrato aún no está cargado.
+        
+    # 🟢 VERIFICAR SI EL OBJETO QUE SE HA GUARDADO ES EL MODELO CONTRATO
+    if sender is ContratoModel:
+        
+        # 3. Lógica de la señal (instance es el Contrato recién guardado)
+        if instance.tipo_contrato in ['alquiler', 'anticretico'] and instance.estado == 'activo':
+            
+            print(f"🔔 Señal POST_SAVE detectada para Contrato ID: {instance.id}. Disparando lógica de alertas...")
 
-    # 2. Lógica de Alquiler: Chequeo robusto de tipo
-    if tipo and 'alquiler' in tipo.lower() and fi and meses > 0:
-        # Crear 1 alerta por cuota mensual
-        for i in range(1, meses + 1):
-            due = fi + relativedelta(months=+i)
-            Alerta.objects.create(
-                contrato=instance,
-                tipo='alquiler_cuota',
-                titulo=f"Pago Alquiler {due.strftime('%B').capitalize()}",
-                descripcion=f"Cuota #{i} del contrato #{instance.id}",
-                due_date=due,
-                periodo_index=i,
-            )
-
-    # 3. Lógica de Anticrético: Chequeo robusto de tipo
-    if tipo and 'anticrético' in tipo.lower() and fin:
-        # Crear alerta de fin de contrato
-        Alerta.objects.create(
-            contrato=instance,
-            tipo='fin_contrato',
-            titulo="Recordatorio Fin de Contrato",
-            descripcion=f"Fin del contrato #{instance.id}",
-            due_date=fin,
-        )
+            # Simulamos un objeto request para la vista del cron job
+            from rest_framework.test import APIRequestFactory
+            rf = APIRequestFactory()
+            fake_request = rf.post('/alertas/ejecutar-generacion/')
+            
+            try:
+                # Importar localmente para evitar circular imports al cargar la app
+                from .views import cron_generar_alertas
+                # Llamamos a la función del cron job (que ya está en views.py)
+                cron_generar_alertas(fake_request)
+                print("✅ Generación de alertas completada por SIGNAL.")
+            except Exception as e:
+                 print(f"❌ Error al ejecutar cron_generar_alertas desde la señal: {e}")
