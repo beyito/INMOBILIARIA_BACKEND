@@ -6,6 +6,7 @@ from datetime import timedelta
 # Asumimos que los siguientes modelos y funciones están disponibles en el ámbito global del proyecto
 from contrato.models import Contrato 
 from .models import AlertaModel 
+from .utils import enviar_notificacion_push 
 # from .utils import enviar_notificacion_push # <- Asume que está accesible en el mismo ámbito
 
 # Importamos logger si lo vas a usar aquí
